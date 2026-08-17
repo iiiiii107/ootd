@@ -1,0 +1,47 @@
+@import 'tailwindcss';
+
+/**
+ * Self-hosted so the app is genuinely offline — no font CDN at runtime.
+ *
+ * Latin and latin-ext only. The app is English (spec §2), but latin-ext covers
+ * the accented characters an item name or note is likely to want; Cyrillic,
+ * Greek and Vietnamese would be ~65KB of precache nobody reads.
+ */
+@import '@fontsource/inter/latin-400.css';
+@import '@fontsource/inter/latin-500.css';
+@import '@fontsource/inter/latin-ext-400.css';
+@import '@fontsource/inter/latin-ext-500.css';
+
+@import './design/serif.css';
+@import './design/tokens.css';
+
+html {
+  /* Kill the iOS pull-to-refresh bounce; this is an app, not a page. */
+  overscroll-behavior-y: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  /* Nothing may hide under the iPhone home bar or notch (spec §8). */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Photos are the only thing worth long-pressing; chrome should feel native. */
+button {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
