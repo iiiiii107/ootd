@@ -5,6 +5,7 @@ import { DetailSheet } from '../components/DetailSheet';
 import { FilterBar } from '../components/FilterBar';
 import { ItemTile } from '../components/ItemTile';
 import { SearchBar } from '../components/SearchBar';
+import { SearchIcon } from '../components/icons';
 import { useWardrobeItems } from '../db/hooks';
 import { getMeta, setMeta } from '../db/meta';
 import { DEFAULT_FILTER_STATE, filterItems, sortItems, type FilterState, type SortKey } from '../db/query';
@@ -22,7 +23,9 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
 
 /**
  * Search, generic tag filters, sort, the detail sheet, and bulk multi-select
- * (spec §7.2) — layered over the plain grid from Phase 1.
+ * (spec §7.2) — layered over the plain grid from Phase 1. Search and every
+ * filter chip live behind one spyglass toggle, collapsed by default, so the
+ * grid is what you see first rather than a wall of controls.
  */
 export default function Wardrobe() {
   const items = useWardrobeItems();
@@ -35,7 +38,7 @@ export default function Wardrobe() {
   const [openItemId, setOpenItemId] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Restore filters and sort once on mount (spec §5: "filter state persists
   // across app launches"). Loaded async, so writes below wait for this first.
@@ -89,34 +92,30 @@ export default function Wardrobe() {
 
   return (
     <div className="flex flex-col gap-3 px-4 pt-4 pb-24">
-      {searchOpen ? (
-        <div className="flex items-center gap-2">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setFiltersOpen(!filtersOpen)}
+          aria-pressed={filtersOpen}
+          className={`flex min-h-11 min-w-11 items-center justify-center ${
+            filtersOpen ? 'text-ink' : 'text-muted'
+          }`}
+          aria-label={filtersOpen ? 'Hide search and filters' : 'Search and filter your wardrobe'}
+        >
+          <SearchIcon className="h-5 w-5" />
+        </button>
+      </div>
+
+      {filtersOpen && (
+        <>
           <SearchBar
             autoFocus
             value={filters.search}
             onChange={(search) => setFilters({ ...filters, search })}
           />
-          <button
-            type="button"
-            onClick={() => {
-              setSearchOpen(false);
-              if (filters.search) setFilters({ ...filters, search: '' });
-            }}
-            className="min-h-11 shrink-0 px-1 text-[13px] text-muted"
-          >
-            close
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setSearchOpen(true)}
-          className="min-h-11 w-fit text-[13px] tracking-wide text-muted"
-        >
-          search
-        </button>
+          <FilterBar groups={groups} filters={filters} onChange={setFilters} />
+        </>
       )}
-      <FilterBar groups={groups} filters={filters} onChange={setFilters} />
 
       <div className="flex items-center justify-between border-b border-rule pb-2">
         <p className="text-[11px] tracking-[0.06em] text-muted uppercase">
