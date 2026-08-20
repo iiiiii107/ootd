@@ -1,10 +1,7 @@
+import type { FilterState } from '../db/query';
+import { toggleInArray } from '../lib/toggleInArray';
 import type { TagGroup } from '../tags/groups';
 import { TagChipRow } from './TagChipRow';
-import type { FilterState } from '../db/query';
-
-function toggleInArray(values: string[], value: string): string[] {
-  return values.includes(value) ? values.filter((v) => v !== value) : [...values, value];
-}
 
 const SWITCHES: { key: 'favoritesOnly' | 'washOnly' | 'needsTaggingOnly' | 'archivedOnly'; label: string }[] = [
   { key: 'favoritesOnly', label: 'favorites' },

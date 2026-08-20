@@ -8,14 +8,15 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 
 ## Status
 
-**Phase 2 complete** — find clothes. Search, a generic tag-group filter bar (built-ins today, custom groups need zero code changes when Phase 6 adds them), sort, the item detail sheet, and long-press bulk edit for wash/location.
+**Phase 3 complete** — the randomizer. `src/logic/pickOutfit.ts` is pure and unit-tested (71 tests total, 40 of those against the pairing engine alone): season overlap, exact formality match, all three vibe rules, favourite/neglect/anti-repeat weighting, the retry ceiling, and empty pools. The screen adds the filter row, lock-and-reshuffle, wearing-today, and save-as-outfit with a real composite image.
 
 | Phase | What it adds | State |
 | --- | --- | --- |
 | 0 | Scaffold, PWA, icon, offline, install banner | done |
 | 1 | Dexie schema, photo import, resize/compress, wardrobe grid | done |
 | 2 | Search, generic filter bar, detail sheet, bulk edit | done |
-| 3 | Randomizer + `pickOutfit` | next |
+| 3 | Randomizer + `pickOutfit` | done |
+| 4 | Outfits view, composites | next |
 | 4 | Outfits view, composites | |
 | 5 | Background removal, design pass | |
 | 6 | Custom tags, export/import backup | |

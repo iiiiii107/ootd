@@ -43,6 +43,20 @@ button {
   touch-action: manipulation;
 }
 
+/* The randomizer's result: a quick cross-fade, not a slot-machine animation (spec §7.1). */
+@keyframes shuffle-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.shuffle-result {
+  animation: shuffle-fade 180ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

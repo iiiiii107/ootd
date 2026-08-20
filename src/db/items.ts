@@ -135,3 +135,64 @@ export async function purgeExpiredTrash(): Promise<number> {
   }
   return expired.length;
 }
+
+/** "Wearing this today" (spec §7.1): sets lastWornAt on every piece shown, increments wearCount. */
+export async function markWornToday(ids: string[]): Promise<void> {
+  const now = Date.now();
+  await db.transaction('rw', db.items, async () => {
+    for (const id of ids) {
+      const item = await db.items.get(id);
+      if (!item) continue;
+      await db.items.update(id, { lastWornAt: now, wearCount: item.wearCount + 1, updatedAt: now });
+    }
+  });
+}
+
+/** "♡ favourite both" (spec §7.1) — sets favourite on every piece shown, not a toggle. */
+export async function favoriteMany(ids: string[]): Promise<void> {
+  const now = Date.now();
+  await db.transaction('rw', db.items, async () => {
+    for (const id of ids) {
+      await db.items.update(id, { favorite: true, updatedAt: now });
+    }
+  });
+}
+
+/**
+ * Save-as-outfit (spec §7.1, §4.1): a new `outfit`-category item whose tags
+ * are inherited from its members at save time, then free to diverge. Seasons
+ * union (any season any member covers); formality/location/vibe take the
+ * first non-null value found among the members, preferring the top.
+ */
+export async function createOutfitFromMembers(members: Item[], composite: Blob): Promise<Item> {
+  const now = Date.now();
+  const firstNonNull = <T,>(values: (T | null)[]): T | null => values.find((v) => v != null) ?? null;
+
+  const item: Item = {
+    id: crypto.randomUUID(),
+    name: await suggestName('outfit'),
+    category: 'outfit',
+    image: composite,
+    thumb: composite,
+    hasCutout: false,
+    seasons: [...new Set(members.flatMap((m) => m.seasons))],
+    formality: firstNonNull(members.map((m) => m.formality)),
+    location: firstNonNull(members.map((m) => m.location)),
+    elsewhereNote: '',
+    vibe: firstNonNull(members.map((m) => m.vibe)),
+    favorite: false,
+    inWash: false,
+    customTags: [],
+    dominantColor: members[0]?.dominantColor ?? '#000000',
+    memberIds: members.map((m) => m.id),
+    notes: '',
+    lastWornAt: null,
+    wearCount: 0,
+    archived: false,
+    deletedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+  await db.items.add(item);
+  return item;
+}
