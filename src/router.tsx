@@ -4,6 +4,7 @@ import { Layout } from './components/Layout';
 import Add from './screens/Add';
 import Outfits from './screens/Outfits';
 import Randomizer from './screens/Randomizer';
+import Settings from './screens/Settings';
 import Wardrobe from './screens/Wardrobe';
 
 /**
@@ -19,6 +20,7 @@ export const router = createHashRouter([
       { path: 'wardrobe', element: <Wardrobe /> },
       { path: 'outfits', element: <Outfits /> },
       { path: 'add', element: <Add /> },
+      { path: 'settings', element: <Settings /> },
     ],
   },
 ]);

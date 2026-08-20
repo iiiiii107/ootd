@@ -196,3 +196,22 @@ export async function createOutfitFromMembers(members: Item[], composite: Blob):
   await db.items.add(item);
   return item;
 }
+
+/** Permanently deletes one trashed item right now, skipping the 30-day wait (Settings' Trash section). */
+export async function hardDeleteItem(id: string): Promise<void> {
+  await db.items.delete(id);
+}
+
+/** Empties the whole trash immediately, regardless of age. */
+export async function emptyTrash(): Promise<void> {
+  const trashed = await db.items.filter((item) => item.deletedAt != null).toArray();
+  await db.items.bulkDelete(trashed.map((item) => item.id));
+}
+
+/** The nuclear option (spec §7.5) — every item, every custom tag, gone. Meta (settings, backup timestamp) is left alone. */
+export async function deleteEverything(): Promise<void> {
+  await db.transaction('rw', db.items, db.tags, async () => {
+    await db.items.clear();
+    await db.tags.clear();
+  });
+}

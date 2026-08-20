@@ -8,7 +8,9 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 
 ## Status
 
-**Phase 5 (background removal half) complete.** Cutouts run entirely on-device via `@imgly/background-removal` (spec R3): the ~40MB model and the ~24MB ONNX runtime it needs are both lazy-loaded and never touch the day-one precache, only fetched — then cached — the first time someone actually uses the feature. A visible, persisted toggle on Add controls it, defaulting on; any failure (offline, slow network, unsupported browser) falls back to the plain photo automatically. The other half of this phase — a full visual design pass — needs real garment photos to be meaningful and hasn't happened yet; still running on synthetic test swatches.
+**Phase 6 complete** — custom tags + backup. A Settings screen (reached from the gear icon in the app shell, not one of the four main tabs) adds: a tag-group manager (create, add/rename/delete values, merge, usage counts — verified a group created there shows up in the wardrobe filter bar with zero code changes, the spec's core requirement for this system); export/import as a real `.ootd` zip via fflate; a storage meter; the background-removal toggle (relocated here from Add, its proper home per spec); trash (restore / delete now / empty); archived items (unarchive); and a type-DELETE-to-confirm wipe-everything option. A dismissible-per-session backup nag appears app-wide when it's been over 30 days since the last export and new items exist.
+
+Still open: Phase 5's visual design pass, deferred until there are real garment photos to design against (everything so far has run on synthetic test swatches), and Phase 7's real-device testing.
 
 | Phase | What it adds | State |
 | --- | --- | --- |
@@ -18,6 +20,8 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 | 3 | Randomizer + `pickOutfit` | done |
 | 4 | Outfits view, composites | done |
 | 5 | Background removal, design pass | background removal done; design pass pending real photos |
+| 6 | Custom tags, export/import backup | done |
+| 7 | Real-device testing | next |
 | 4 | Outfits view, composites | |
 | 5 | Background removal, design pass | |
 | 6 | Custom tags, export/import backup | |

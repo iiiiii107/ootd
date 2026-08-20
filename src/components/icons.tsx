@@ -43,3 +43,22 @@ export function LockIcon({ locked, className }: { locked: boolean; className?: s
     </svg>
   );
 }
+
+/** Entry point to Settings (spec §7.5) — the only nav element outside the tab bar. */
+export function GearIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <circle cx="10" cy="10" r="2.75" />
+      <path d="M10 3v2.2M10 14.8V17M17 10h-2.2M5.2 10H3M14.66 5.34l-1.56 1.56M6.9 13.1l-1.56 1.56M14.66 14.66l-1.56-1.56M6.9 6.9 5.34 5.34" />
+    </svg>
+  );
+}

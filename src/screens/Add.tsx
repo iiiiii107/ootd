@@ -1,13 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { ScreenTitle } from '../components/ScreenTitle';
+import { useCutoutEnabled } from '../db/hooks';
 import { createItem, suggestName, updateItem } from '../db/items';
-import { getMeta, setMeta } from '../db/meta';
 import type { Category } from '../db/types';
 import { importPhoto } from '../images/pipeline';
 import { useObjectUrl } from '../lib/useObjectUrl';
-
-const CUTOUT_ENABLED_KEY = 'backgroundRemovalEnabled';
 
 type Status = 'processing' | 'done' | 'error';
 
@@ -38,26 +36,12 @@ const CATEGORIES: Category[] = ['top', 'bottom', 'other', 'outfit'];
 export default function Add() {
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  // Automatic background removal is the locked default (spec §2), with a
-  // visible off switch (spec R3) — persisted so it doesn't reset every visit.
-  const [cutoutEnabled, setCutoutEnabled] = useState(true);
+  // The switch itself lives in Settings (spec §7.5); reading it live here
+  // means a change there takes effect immediately, no remount needed.
+  const cutoutEnabled = useCutoutEnabled();
   // Carries the last-chosen category to the next photo, so five tops in a
   // row don't each need re-selecting (spec §7.4's "same tags as previous").
   const lastCategory = useRef<Category>('top');
-
-  useEffect(() => {
-    void getMeta<boolean>(CUTOUT_ENABLED_KEY).then((saved) => {
-      if (saved != null) setCutoutEnabled(saved);
-    });
-  }, []);
-
-  function toggleCutout() {
-    setCutoutEnabled((prev) => {
-      const next = !prev;
-      void setMeta(CUTOUT_ENABLED_KEY, next);
-      return next;
-    });
-  }
 
   function patchEntry(key: string, patch: Partial<QueueEntry>) {
     setQueue((q) => q.map((e) => (e.key === key ? { ...e, ...patch } : e)));
@@ -117,22 +101,13 @@ export default function Add() {
         <PickerButton label="Choose photos" multiple accept="image/*" onFiles={handleFiles} />
       </div>
 
-      <button
-        type="button"
-        onClick={toggleCutout}
-        aria-pressed={cutoutEnabled}
-        className={`min-h-8 w-fit border px-2.5 text-[11px] tracking-[0.04em] uppercase ${
-          cutoutEnabled ? 'border-ink bg-ink text-paper' : 'border-rule text-muted'
-        }`}
-      >
-        remove background
-      </button>
-
       {queue.length === 0 ? (
         <p className="text-[13px] leading-relaxed text-muted">
           Photos save as soon as they&rsquo;re processed. Category is the only required tag —
           everything else can be finished later from the wardrobe.
-          {cutoutEnabled && ' The first background removal downloads a one-time model file, so it may take a moment.'}
+          {cutoutEnabled
+            ? ' Backgrounds are removed automatically (turn this off in Settings) — the first one downloads a one-time model file, so it may take a moment.'
+            : ' Background removal is off — turn it on in Settings.'}
         </p>
       ) : (
         <ul className="flex flex-col gap-3">

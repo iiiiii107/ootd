@@ -41,16 +41,69 @@ export function useOutfitItems(): Item[] | undefined {
   );
 }
 
-/**
- * Every custom tag value across every group (spec §4.2). Empty until Phase 6
- * ships a group manager — `useGroups` still merges over this list today so
- * that manager needs no changes here when it lands (spec §15).
- */
+/** Every custom tag value across every group (spec §4.2), for the group manager and `useGroups`. */
 export function useCustomTags(): CustomTag[] | undefined {
   return useLiveQuery(() => db.tags.orderBy('sortOrder').toArray(), []);
+}
+
+/** Trashed items (spec §4.4), newest-trashed first — Settings' Trash section. */
+export function useTrashedItems(): Item[] | undefined {
+  return useLiveQuery(
+    () =>
+      db.items
+        .filter((item) => item.deletedAt != null)
+        .toArray()
+        .then((items) => items.sort((a, b) => (b.deletedAt ?? 0) - (a.deletedAt ?? 0))),
+    [],
+  );
+}
+
+/** Archived items (spec §4.4), newest first — Settings' Archived section. */
+export function useArchivedItems(): Item[] | undefined {
+  return useLiveQuery(
+    () =>
+      db.items
+        .orderBy('createdAt')
+        .reverse()
+        .filter((item) => item.archived && item.deletedAt == null)
+        .toArray(),
+    [],
+  );
 }
 
 /** A single item, live — independent of any filtered list it might drop out of mid-edit. */
 export function useItem(id: string | null): Item | undefined {
   return useLiveQuery(() => (id ? db.items.get(id) : undefined), [id]);
+}
+
+/**
+ * Automatic background removal is the locked default (spec §2), with a
+ * visible off switch living in Settings (spec §7.5) — reactive so a change
+ * there is picked up immediately by Add without needing a remount.
+ */
+export function useCutoutEnabled(): boolean {
+  const value = useLiveQuery(async () => {
+    const entry = await db.meta.get('backgroundRemovalEnabled');
+    return (entry?.value as boolean | undefined) ?? true;
+  }, []);
+  return value ?? true;
+}
+
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * The backup nag's own condition (spec §12 R1): more than 30 days since the
+ * last export, *and* at least one item has been added since then — an
+ * unchanged wardrobe never needs re-backing-up just because a month passed.
+ */
+export function useNeedsBackup(): boolean {
+  const result = useLiveQuery(async () => {
+    const entry = await db.meta.get('lastBackupAt');
+    const lastBackupAt = (entry?.value as number | undefined) ?? null;
+    const overdue = lastBackupAt == null || Date.now() - lastBackupAt > THIRTY_DAYS_MS;
+    if (!overdue) return false;
+    const newItemCount = await db.items.where('createdAt').above(lastBackupAt ?? 0).count();
+    return newItemCount > 0;
+  }, []);
+  return result ?? false;
 }
