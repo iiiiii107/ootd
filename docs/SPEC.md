@@ -182,7 +182,7 @@ pick: weighted-random a top, then weighted-random a bottom from those compatible
 
 ### 7.2 Wardrobe
 
-- **Search bar pinned to the top.** Free text matches `name` and `notes`. Beneath it, horizontally scrolling chip rows — one row per tag group, including custom groups — plus `favourites`, `in the wash`, `needs tagging`, `archived`.
+- **Search is a toggle, not pinned open** *(revised — the user asked for this after using Phase 2 live)*: a small `search` control reveals the text field; closing it clears the query rather than leaving a hidden filter active. Free text matches `name` and `notes`. Beneath it, horizontally scrolling chip rows — one row per tag group, including custom groups — plus `favourites`, `in the wash`, `needs tagging`, `archived`, all rendered lowercase like the rest of the app's labels.
 - Dense image grid: 2 columns on phone, 4–6 on desktop, square thumbs, 1px gaps.
 - **Locked default sort: newest first.** Offer sort by name, by last worn, by category.
 - Tap → detail sheet: full image, editable name, all tag groups as chips, heart, wash toggle, location quick-change, wear log, notes, archive, delete.
@@ -342,7 +342,7 @@ Every item below has a working default. Do not block on them.
 | 6 | Accessory (`other`) in the randomizer | Toggle, off by default |
 | 7 | Backup reminder cadence | 30 days since last backup, only if items were added |
 | 8 | App icon | `ootd` Sniglet Bold wordmark, off-white ground |
-| 9 | Are `other` items mixed into the main wardrobe grid? | Yes, with a category chip to isolate them |
+| 9 | Are `other` items mixed into the main wardrobe grid? | Yes, with a category chip to isolate them. `outfit`-category items are never mixed in, full stop — they only ever appear in the Outfits view (revised in Phase 2; the wardrobe grid excludes `category: 'outfit'` outright rather than making it just another filterable value). |
 | 10 | Hosting | Netlify, signed in with GitHub |
 
 ---

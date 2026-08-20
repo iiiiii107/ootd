@@ -1,33 +1,240 @@
+import { useEffect, useMemo, useState } from 'react';
+
+import { BulkActionBar } from '../components/BulkActionBar';
+import { DetailSheet } from '../components/DetailSheet';
+import { FilterBar } from '../components/FilterBar';
 import { ItemTile } from '../components/ItemTile';
+import { SearchBar } from '../components/SearchBar';
 import { useWardrobeItems } from '../db/hooks';
+import { getMeta, setMeta } from '../db/meta';
+import { DEFAULT_FILTER_STATE, filterItems, sortItems, type FilterState, type SortKey } from '../db/query';
+import { useGroups } from '../tags/useGroups';
+
+const FILTER_STATE_KEY = 'wardrobeFilterState';
+const SORT_KEY_KEY = 'wardrobeSortKey';
+
+const SORT_OPTIONS: { value: SortKey; label: string }[] = [
+  { value: 'newest', label: 'newest' },
+  { value: 'name', label: 'name' },
+  { value: 'lastWorn', label: 'last worn' },
+  { value: 'category', label: 'category' },
+];
 
 /**
- * The plain grid (spec §7.2). Search, filter chips, and the detail sheet
- * arrive in Phase 2 — this is deliberately just the grid and an empty state.
+ * Search, generic tag filters, sort, the detail sheet, and bulk multi-select
+ * (spec §7.2) — layered over the plain grid from Phase 1.
  */
 export default function Wardrobe() {
   const items = useWardrobeItems();
+  const groups = useGroups();
+
+  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
+  const [sortKey, setSortKey] = useState<SortKey>('newest');
+  const [loadedPersisted, setLoadedPersisted] = useState(false);
+
+  const [openItemId, setOpenItemId] = useState<string | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  // Restore filters and sort once on mount (spec §5: "filter state persists
+  // across app launches"). Loaded async, so writes below wait for this first.
+  useEffect(() => {
+    void (async () => {
+      const [savedFilters, savedSort] = await Promise.all([
+        getMeta<FilterState>(FILTER_STATE_KEY),
+        getMeta<SortKey>(SORT_KEY_KEY),
+      ]);
+      if (savedFilters) setFilters(savedFilters);
+      if (savedSort) setSortKey(savedSort);
+      setLoadedPersisted(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (loadedPersisted) void setMeta(FILTER_STATE_KEY, filters);
+  }, [filters, loadedPersisted]);
+
+  useEffect(() => {
+    if (loadedPersisted) void setMeta(SORT_KEY_KEY, sortKey);
+  }, [sortKey, loadedPersisted]);
+
+  const visible = useMemo(() => {
+    if (!items) return undefined;
+    return sortItems(filterItems(items, filters, groups), sortKey);
+  }, [items, filters, groups, sortKey]);
+
+  function toggleSelected(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function enterSelectMode(id: string) {
+    setSelectMode(true);
+    setSelectedIds(new Set([id]));
+  }
+
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }
 
   if (items === undefined) {
     return null; // first read from IndexedDB; avoids an empty-state flash
   }
 
-  if (items.length === 0) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-        <h1 className="font-display font-extrabold text-3xl lowercase tracking-[0.1em] text-ink">wardrobe</h1>
-        <p className="max-w-xs text-[13px] leading-relaxed text-muted">
-          Nothing here yet. Add a few photos to get started.
+  return (
+    <div className="flex flex-col gap-3 px-4 pt-4 pb-24">
+      {searchOpen ? (
+        <div className="flex items-center gap-2">
+          <SearchBar
+            autoFocus
+            value={filters.search}
+            onChange={(search) => setFilters({ ...filters, search })}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              setSearchOpen(false);
+              if (filters.search) setFilters({ ...filters, search: '' });
+            }}
+            className="min-h-11 shrink-0 px-1 text-[13px] text-muted"
+          >
+            close
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setSearchOpen(true)}
+          className="min-h-11 w-fit text-[13px] tracking-wide text-muted"
+        >
+          search
+        </button>
+      )}
+      <FilterBar groups={groups} filters={filters} onChange={setFilters} />
+
+      <div className="flex items-center justify-between border-b border-rule pb-2">
+        <p className="text-[11px] tracking-[0.06em] text-muted uppercase">
+          {visible?.length ?? 0} item{visible?.length === 1 ? '' : 's'}
         </p>
+        <div className="flex gap-1.5">
+          {SORT_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setSortKey(option.value)}
+              aria-pressed={sortKey === option.value}
+              className={`min-h-8 px-2 text-[11px] tracking-[0.04em] uppercase ${
+                sortKey === option.value ? 'text-ink' : 'text-muted'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
-    );
+
+      {items.length === 0 ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 py-16 text-center">
+          <h1 className="font-display font-extrabold text-3xl lowercase tracking-[0.1em] text-ink">
+            wardrobe
+          </h1>
+          <p className="max-w-xs text-[13px] leading-relaxed text-muted">
+            Nothing here yet. Add a few photos to get started.
+          </p>
+        </div>
+      ) : visible && visible.length === 0 ? (
+        <EmptyFilterState filters={filters} groups={groups} onChange={setFilters} />
+      ) : (
+        <div className="grid grid-cols-2 gap-px sm:grid-cols-4 lg:grid-cols-6">
+          {visible?.map((item) => (
+            <ItemTile
+              key={item.id}
+              item={item}
+              selectMode={selectMode}
+              selected={selectedIds.has(item.id)}
+              onTap={() => setOpenItemId(item.id)}
+              onToggleSelect={() => toggleSelected(item.id)}
+              onLongPress={() => enterSelectMode(item.id)}
+            />
+          ))}
+        </div>
+      )}
+
+      {selectMode && <BulkActionBar selectedIds={[...selectedIds]} onDone={exitSelectMode} />}
+
+      {openItemId && <DetailSheet itemId={openItemId} onClose={() => setOpenItemId(null)} />}
+    </div>
+  );
+}
+
+/** Diagnostic, not blank — names every active filter so it can be cleared. */
+function EmptyFilterState({
+  filters,
+  groups,
+  onChange,
+}: {
+  filters: FilterState;
+  groups: ReturnType<typeof useGroups>;
+  onChange: (next: FilterState) => void;
+}) {
+  const activeChips: { label: string; clear: () => void }[] = [];
+
+  for (const group of groups) {
+    for (const value of filters.groups[group.id] ?? []) {
+      const option = group.options.find((o) => o.value === value);
+      activeChips.push({
+        label: option?.label ?? value,
+        clear: () =>
+          onChange({
+            ...filters,
+            groups: { ...filters.groups, [group.id]: filters.groups[group.id].filter((v) => v !== value) },
+          }),
+      });
+    }
+  }
+  if (filters.favoritesOnly) {
+    activeChips.push({ label: 'favorites', clear: () => onChange({ ...filters, favoritesOnly: false }) });
+  }
+  if (filters.washOnly) {
+    activeChips.push({ label: 'in the wash', clear: () => onChange({ ...filters, washOnly: false }) });
+  }
+  if (filters.needsTaggingOnly) {
+    activeChips.push({
+      label: 'needs tagging',
+      clear: () => onChange({ ...filters, needsTaggingOnly: false }),
+    });
+  }
+  if (filters.archivedOnly) {
+    activeChips.push({ label: 'archived', clear: () => onChange({ ...filters, archivedOnly: false }) });
   }
 
   return (
-    <div className="grid grid-cols-2 gap-px sm:grid-cols-4 lg:grid-cols-6">
-      {items.map((item) => (
-        <ItemTile key={item.id} item={item} />
-      ))}
+    <div className="flex flex-col items-center gap-3 py-16 text-center">
+      <p className="text-[13px] text-muted">
+        {filters.search
+          ? `Nothing matches "${filters.search}"${activeChips.length > 0 ? ' with these filters' : ''}.`
+          : 'Nothing matches these filters.'}
+      </p>
+      {activeChips.length > 0 && (
+        <div className="flex flex-wrap justify-center gap-1.5">
+          {activeChips.map((chip) => (
+            <button
+              key={chip.label}
+              type="button"
+              onClick={chip.clear}
+              className="min-h-8 border border-rule px-2.5 text-[11px] tracking-[0.04em] text-ink uppercase"
+            >
+              {chip.label} ×
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

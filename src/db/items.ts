@@ -78,6 +78,26 @@ export async function archiveItem(id: string, archived = true): Promise<void> {
   await updateItem(id, { archived });
 }
 
+/** Bulk location change — "everything in this box is going to university" (spec §7.2). */
+export async function bulkSetLocation(ids: string[], location: Item['location']): Promise<void> {
+  const now = Date.now();
+  await db.transaction('rw', db.items, async () => {
+    for (const id of ids) {
+      await db.items.update(id, { location, updatedAt: now });
+    }
+  });
+}
+
+/** Bulk wash toggle — clearing a whole laundry load in a few taps (spec §6). */
+export async function bulkSetWash(ids: string[], inWash: boolean): Promise<void> {
+  const now = Date.now();
+  await db.transaction('rw', db.items, async () => {
+    for (const id of ids) {
+      await db.items.update(id, { inWash, updatedAt: now });
+    }
+  });
+}
+
 /**
  * Trash an item. If it is referenced by any saved outfit's `memberIds`, that
  * outfit is trashed too (spec §4.4) — the caller is expected to have already

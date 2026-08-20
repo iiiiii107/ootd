@@ -8,14 +8,14 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 
 ## Status
 
-**Phase 1 complete** — clothes go in. Dexie schema, camera/library import, HEIC→JPEG, resize/compress/thumb, dominant colour, and the wardrobe grid, all behind `src/db/`. Not yet deployed to a phone — that's next.
+**Phase 2 complete** — find clothes. Search, a generic tag-group filter bar (built-ins today, custom groups need zero code changes when Phase 6 adds them), sort, the item detail sheet, and long-press bulk edit for wash/location.
 
 | Phase | What it adds | State |
 | --- | --- | --- |
 | 0 | Scaffold, PWA, icon, offline, install banner | done |
 | 1 | Dexie schema, photo import, resize/compress, wardrobe grid | done |
-| 2 | Search, generic filter bar, detail sheet, bulk edit | next |
-| 3 | Randomizer + `pickOutfit` | |
+| 2 | Search, generic filter bar, detail sheet, bulk edit | done |
+| 3 | Randomizer + `pickOutfit` | next |
 | 4 | Outfits view, composites | |
 | 5 | Background removal, design pass | |
 | 6 | Custom tags, export/import backup | |
