@@ -24,6 +24,24 @@ export function useWardrobeItems(): Item[] | undefined {
 }
 
 /**
+ * The Outfits view's own list (spec §7.3): `outfit`-category items only,
+ * newest first, trashed excluded. Both kinds live here together — real
+ * worn looks photographed with category `outfit`, and composites saved
+ * from the randomizer — the category is all that distinguishes them.
+ */
+export function useOutfitItems(): Item[] | undefined {
+  return useLiveQuery(
+    () =>
+      db.items
+        .orderBy('createdAt')
+        .reverse()
+        .filter((item) => item.deletedAt == null && item.category === 'outfit')
+        .toArray(),
+    [],
+  );
+}
+
+/**
  * Every custom tag value across every group (spec §4.2). Empty until Phase 6
  * ships a group manager — `useGroups` still merges over this list today so
  * that manager needs no changes here when it lands (spec §15).

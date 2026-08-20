@@ -3,10 +3,12 @@ export function SearchBar({
   value,
   onChange,
   autoFocus,
+  placeholder = 'search your wardrobe',
 }: {
   value: string;
   onChange: (value: string) => void;
   autoFocus?: boolean;
+  placeholder?: string;
 }) {
   return (
     <input
@@ -14,7 +16,7 @@ export function SearchBar({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       autoFocus={autoFocus}
-      placeholder="search your wardrobe"
+      placeholder={placeholder}
       className="min-h-11 w-full border-b border-rule bg-transparent px-1 text-[15px] text-ink outline-none placeholder:text-muted focus:border-ink"
     />
   );

@@ -8,7 +8,7 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 
 ## Status
 
-**Phase 3 complete** — the randomizer. `src/logic/pickOutfit.ts` is pure and unit-tested (71 tests total, 40 of those against the pairing engine alone): season overlap, exact formality match, all three vibe rules, favourite/neglect/anti-repeat weighting, the retry ceiling, and empty pools. The screen adds the filter row, lock-and-reshuffle, wearing-today, and save-as-outfit with a real composite image.
+**Phase 4 complete** — the outfits view. A dedicated grid with larger cards, both photographed looks and randomizer composites living together, filterable and searchable like the wardrobe (minus the category chip — everything here already is one). The detail sheet now shows a "made from" row for composites, and tapping a member opens a second, nested detail sheet for that piece.
 
 | Phase | What it adds | State |
 | --- | --- | --- |
@@ -16,7 +16,8 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 | 1 | Dexie schema, photo import, resize/compress, wardrobe grid | done |
 | 2 | Search, generic filter bar, detail sheet, bulk edit | done |
 | 3 | Randomizer + `pickOutfit` | done |
-| 4 | Outfits view, composites | next |
+| 4 | Outfits view, composites | done |
+| 5 | Background removal, design pass | next |
 | 4 | Outfits view, composites | |
 | 5 | Background removal, design pass | |
 | 6 | Custom tags, export/import backup | |

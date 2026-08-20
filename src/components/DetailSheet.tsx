@@ -1,7 +1,9 @@
-import { archiveItem, outfitsReferencing, toggleFavorite, toggleWash, trashItem, updateItem } from '../db/items';
+import { useState } from 'react';
+
 import { useItem } from '../db/hooks';
-import { useGroups } from '../tags/useGroups';
+import { archiveItem, outfitsReferencing, toggleFavorite, toggleWash, trashItem, updateItem } from '../db/items';
 import { useObjectUrl } from '../lib/useObjectUrl';
+import { useGroups } from '../tags/useGroups';
 import { TagChipRow } from './TagChipRow';
 
 function formatLastWorn(lastWornAt: number | null): string {
@@ -13,11 +15,17 @@ function formatLastWorn(lastWornAt: number | null): string {
  * Full item detail (spec §7.2): image, editable name, every tag group as
  * chips, favourite, wash toggle, wear log, notes, archive, delete. Delete
  * runs the outfit-breakage check (spec §4.4) before trashing anything.
+ *
+ * Doubles as the outfit detail view (spec §7.3) — an item with `memberIds`
+ * gets a "made from" row of its member pieces. Tapping one opens a second
+ * DetailSheet for that member, nested on top of this one; there's no
+ * per-item route to navigate to instead, so the sheet just recurses.
  */
 export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () => void }) {
   const item = useItem(itemId);
   const groups = useGroups();
   const imageUrl = useObjectUrl(item?.image);
+  const [viewingMemberId, setViewingMemberId] = useState<string | null>(null);
 
   if (!item) return null;
 
@@ -61,6 +69,17 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
           onChange={(e) => void updateItem(item.id, { name: e.target.value })}
           className="min-h-11 border-b border-rule bg-transparent text-[20px] text-ink outline-none focus:border-ink"
         />
+
+        {item.memberIds.length > 0 && (
+          <div className="flex flex-col gap-1.5">
+            <p className="text-[11px] tracking-[0.08em] text-muted uppercase">Made from</p>
+            <div className="flex gap-2 overflow-x-auto pb-0.5">
+              {item.memberIds.map((memberId) => (
+                <MemberThumb key={memberId} id={memberId} onTap={() => setViewingMemberId(memberId)} />
+              ))}
+            </div>
+          </div>
+        )}
 
         <button
           type="button"
@@ -126,6 +145,30 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
           </button>
         </div>
       </div>
+
+      {viewingMemberId && (
+        <DetailSheet itemId={viewingMemberId} onClose={() => setViewingMemberId(null)} />
+      )}
     </div>
   );
 }
+
+/** One "made from" thumbnail. A member can be trashed independently of the outfit that used it, hence the guard. */
+function MemberThumb({ id, onTap }: { id: string; onTap: () => void }) {
+  const member = useItem(id);
+  const url = useObjectUrl(member?.thumb);
+
+  if (!member) {
+    return <p className="shrink-0 self-center text-[11px] text-muted italic">removed piece</p>;
+  }
+
+  return (
+    <button type="button" onClick={onTap} className="flex w-20 shrink-0 flex-col gap-1 text-left">
+      <div className="aspect-square bg-sunken">
+        {url && <img src={url} alt={member.name} className="h-full w-full object-cover" />}
+      </div>
+      <p className="truncate text-[11px] text-muted">{member.name}</p>
+    </button>
+  );
+}
+
