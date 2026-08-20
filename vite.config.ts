@@ -40,6 +40,11 @@ export default defineConfig({
         // Precache the whole shell so the app opens in airplane mode. Fonts are
         // bundled, so this really is everything the app needs at runtime.
         globPatterns: ['**/*.{js,css,html,png,svg,woff2}'],
+        // The HEIC→JPEG fallback (spec R4) is dynamically imported so its ~3MB
+        // libheif WASM decoder doesn't bloat the main bundle — but it still has
+        // to be precached, or a HEIC photo picked in airplane mode would fail to
+        // convert. Workbox's 2MB default would silently skip that chunk.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         // Photos live in IndexedDB and are never fetched, so the cache only
         // ever holds the shell — but a stale shell is the one way this app can
         // break, so let a new service worker take over immediately.

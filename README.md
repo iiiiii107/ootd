@@ -8,13 +8,13 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 
 ## Status
 
-**Phase 0 complete** — the pipeline. Scaffold, PWA manifest, real icon, offline shell, and the iOS install banner.
+**Phase 1 complete** — clothes go in. Dexie schema, camera/library import, HEIC→JPEG, resize/compress/thumb, dominant colour, and the wardrobe grid, all behind `src/db/`. Not yet deployed to a phone — that's next.
 
 | Phase | What it adds | State |
 | --- | --- | --- |
 | 0 | Scaffold, PWA, icon, offline, install banner | done |
-| 1 | Dexie schema, photo import, resize/compress, wardrobe grid | next |
-| 2 | Search, generic filter bar, detail sheet, bulk edit | |
+| 1 | Dexie schema, photo import, resize/compress, wardrobe grid | done |
+| 2 | Search, generic filter bar, detail sheet, bulk edit | next |
 | 3 | Randomizer + `pickOutfit` | |
 | 4 | Outfits view, composites | |
 | 5 | Background removal, design pass | |
