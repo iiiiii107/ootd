@@ -57,7 +57,7 @@ Installed home-screen apps are also exempt from iOS clearing unused site data af
 
 ## The icon
 
-`scripts/icon.js` is the whole icon — a lowercase `ootd` wordmark in Playfair Display on the paper ground. `npm run icons` re-renders every size into `public/icons/`, reading the font straight out of the copy the app itself ships, so the icon and the in-app wordmark cannot drift apart. Swapping in a drawn symbol later means editing that one file.
+`scripts/icon.js` is the whole icon — a lowercase `ootd` wordmark in Sniglet Bold on the paper ground. `npm run icons` re-renders every size into `public/icons/`, reading the font straight out of the copy the app itself ships, so the icon and the in-app wordmark cannot drift apart. Swapping in a drawn symbol later means editing that one file.
 
 The generated PNGs are committed, so a build or a deploy never runs the generator.
 

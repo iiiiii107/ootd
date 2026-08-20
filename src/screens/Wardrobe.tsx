@@ -15,7 +15,7 @@ export default function Wardrobe() {
   if (items.length === 0) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-        <h1 className="font-serif text-3xl lowercase tracking-[0.1em] text-ink">wardrobe</h1>
+        <h1 className="font-display font-extrabold text-3xl lowercase tracking-[0.1em] text-ink">wardrobe</h1>
         <p className="max-w-xs text-[13px] leading-relaxed text-muted">
           Nothing here yet. Add a few photos to get started.
         </p>

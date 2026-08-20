@@ -89,7 +89,7 @@ export default function Add() {
 
   return (
     <div className="flex flex-col gap-5 px-5 py-6 pb-10">
-      <h1 className="font-serif text-3xl lowercase tracking-[0.1em] text-ink">add</h1>
+      <h1 className="font-display font-extrabold text-3xl lowercase tracking-[0.1em] text-ink">add</h1>
 
       <div className="flex gap-3">
         <PickerButton label="Take photo" capture accept="image/*" onFiles={handleFiles} />

@@ -6,13 +6,19 @@
  * Latin and latin-ext only. The app is English (spec §2), but latin-ext covers
  * the accented characters an item name or note is likely to want; Cyrillic,
  * Greek and Vietnamese would be ~65KB of precache nobody reads.
+ *
+ * Comic Neue ships a latin subset only — no latin-ext exists for it upstream —
+ * so an accented character in a name or note quietly falls through to the
+ * fallback stack's system Comic Sans MS rather than tofu. Sniglet has both.
  */
-@import '@fontsource/inter/latin-400.css';
-@import '@fontsource/inter/latin-500.css';
-@import '@fontsource/inter/latin-ext-400.css';
-@import '@fontsource/inter/latin-ext-500.css';
+@import '@fontsource/comic-neue/latin-400.css';
+@import '@fontsource/comic-neue/latin-700.css';
 
-@import './design/serif.css';
+@import '@fontsource/sniglet/latin-400.css';
+@import '@fontsource/sniglet/latin-800.css';
+@import '@fontsource/sniglet/latin-ext-400.css';
+@import '@fontsource/sniglet/latin-ext-800.css';
+
 @import './design/tokens.css';
 
 html {

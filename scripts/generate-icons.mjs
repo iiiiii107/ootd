@@ -21,15 +21,12 @@ import { INK, PAPER, markup } from './icon.js';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = resolve(root, 'public/icons');
 
-const WOFF2 = resolve(
-  root,
-  'node_modules/@fontsource-variable/playfair-display/files/playfair-display-latin-wght-normal.woff2',
-);
+const WOFF2 = resolve(root, 'node_modules/@fontsource/sniglet/files/sniglet-latin-800-normal.woff2');
 
 /** resvg reads ttf/otf, @fontsource ships woff2 only. */
-async function serifTtf() {
+async function snigletTtf() {
   const ttf = await decompress(await readFile(WOFF2));
-  const path = join(await mkdtemp(join(tmpdir(), 'ootd-icons-')), 'playfair.ttf');
+  const path = join(await mkdtemp(join(tmpdir(), 'ootd-icons-')), 'sniglet.ttf');
   await writeFile(path, ttf);
   return path;
 }
@@ -37,7 +34,7 @@ async function serifTtf() {
 function render(svg, fontFile, size) {
   return new Resvg(svg, {
     fitTo: { mode: 'width', value: size },
-    font: { fontFiles: [fontFile], loadSystemFonts: false, defaultFontFamily: 'Playfair Display' },
+    font: { fontFiles: [fontFile], loadSystemFonts: false, defaultFontFamily: 'Sniglet' },
   })
     .render()
     .asPng();
@@ -59,7 +56,7 @@ const icons = [
 ];
 
 await mkdir(outDir, { recursive: true });
-const fontFile = await serifTtf();
+const fontFile = await snigletTtf();
 
 for (const { file, size, inset } of icons) {
   const svg = markup({ size, inset, ground: PAPER, ink: INK });

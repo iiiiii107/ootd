@@ -209,14 +209,14 @@ Manage tag groups · **Export backup** · **Import backup** · storage used · b
 Minimal but fashionable, meaning: the clothes are the only colour on screen.
 
 - Paper off-white background `#FAF9F7`, near-black text `#1A1A1A`, mid-grey `#8A8681` for secondary. One restrained accent for interactive/selected states. Everything else greyscale.
-- Typography does the fashion work: a high-contrast editorial serif for the `ootd` wordmark and screen titles; **Inter** for all UI. Lowercase wordmark, wide letterspacing.
+- Typography does the fashion work: **Sniglet** (bold, 800) for the `ootd` wordmark and screen titles — a bubble-letter, Comic-Sans-family display face; **Comic Neue** for all UI, the same cartoon family but legible down to chip and caption sizes. Lowercase wordmark, wide letterspacing. *(Revised from the original editorial-serif direction — the user asked for a black-and-white, cartoon-ish vibe after seeing Phase 0/1 running. Both fonts are self-hosted via `@fontsource`, same offline guarantee as before.)*
 - No drop shadows, no gradients, no rounded-everything. Hairline rules, generous whitespace, images edge-to-edge in the grid.
 - Cutouts on flat white make the grid read as a lookbook rather than a camera roll — this is why background removal earns its complexity.
 - Motion minimal and fast: shuffle is a quick card cross-fade, not a slot-machine animation. Tasteful over cute.
 - Dark mode: inverted, warm black.
 - 44px minimum tap targets; respect `env(safe-area-inset-*)` so nothing hides under the iPhone home bar.
 
-**App icon — build it.** *Locked default:* lowercase `ootd` wordmark in the editorial serif, near-black on the off-white paper ground, generous margin, plus a `maskable` variant with extra padding. Export 192/512/1024 PNG + `apple-touch-icon`. If the user later wants a drawn symbol instead, it is a single-file swap.
+**App icon — build it.** *Locked default:* lowercase `ootd` wordmark in Sniglet Bold, near-black on the off-white paper ground, generous margin, plus a `maskable` variant with extra padding. Export 192/512/1024 PNG + `apple-touch-icon`. If the user later wants a drawn symbol instead, it is a single-file swap.
 
 ---
 
@@ -341,7 +341,7 @@ Every item below has a working default. Do not block on them.
 | 5 | Do outfits carry the full tag set? | Yes; composites inherit from members at save time |
 | 6 | Accessory (`other`) in the randomizer | Toggle, off by default |
 | 7 | Backup reminder cadence | 30 days since last backup, only if items were added |
-| 8 | App icon | `ootd` serif wordmark, off-white ground |
+| 8 | App icon | `ootd` Sniglet Bold wordmark, off-white ground |
 | 9 | Are `other` items mixed into the main wardrobe grid? | Yes, with a category chip to isolate them |
 | 10 | Hosting | Netlify, signed in with GitHub |
 
