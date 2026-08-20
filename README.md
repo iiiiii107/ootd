@@ -8,7 +8,7 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 
 ## Status
 
-**Phase 4 complete** — the outfits view. A dedicated grid with larger cards, both photographed looks and randomizer composites living together, filterable and searchable like the wardrobe (minus the category chip — everything here already is one). The detail sheet now shows a "made from" row for composites, and tapping a member opens a second, nested detail sheet for that piece.
+**Phase 5 (background removal half) complete.** Cutouts run entirely on-device via `@imgly/background-removal` (spec R3): the ~40MB model and the ~24MB ONNX runtime it needs are both lazy-loaded and never touch the day-one precache, only fetched — then cached — the first time someone actually uses the feature. A visible, persisted toggle on Add controls it, defaulting on; any failure (offline, slow network, unsupported browser) falls back to the plain photo automatically. The other half of this phase — a full visual design pass — needs real garment photos to be meaningful and hasn't happened yet; still running on synthetic test swatches.
 
 | Phase | What it adds | State |
 | --- | --- | --- |
@@ -17,7 +17,7 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 | 2 | Search, generic filter bar, detail sheet, bulk edit | done |
 | 3 | Randomizer + `pickOutfit` | done |
 | 4 | Outfits view, composites | done |
-| 5 | Background removal, design pass | next |
+| 5 | Background removal, design pass | background removal done; design pass pending real photos |
 | 4 | Outfits view, composites | |
 | 5 | Background removal, design pass | |
 | 6 | Custom tags, export/import backup | |

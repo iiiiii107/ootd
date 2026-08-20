@@ -52,6 +52,40 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         navigateFallback: 'index.html',
+        // The background-removal model (spec R3, src/images/cutout.ts) is
+        // ~40MB and deliberately not precached day-one — it's fetched from
+        // IMG.LY's CDN the first time someone actually uses the feature.
+        // This runtime rule caches it after that first fetch (CacheFirst:
+        // the model is versioned and immutable, never worth re-fetching)
+        // so every use after the first works offline too, matching spec
+        // R3's own "download, cached after first use" framing.
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) => url.origin === 'https://staticimgly.com',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'bg-removal-model',
+              expiration: { maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+          // onnxruntime-web (the inference engine @imgly/background-removal runs
+          // the model with) bundles its own ~24MB WASM binary as a same-origin,
+          // content-hashed asset rather than fetching it from a CDN — self-hosted,
+          // but too large for the day-one precache above, same reasoning as the
+          // model weights. A hashed filename means a stale cached copy is never a
+          // problem: a new build simply requests a new hash.
+          {
+            urlPattern: ({ sameOrigin, url }) =>
+              sameOrigin && (url.pathname.includes('/ort') || url.pathname.endsWith('.wasm')),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'bg-removal-runtime',
+              expiration: { maxEntries: 10, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
+          },
+        ],
       },
       devOptions: {
         // So the install prompt and offline behaviour can be checked in dev.
