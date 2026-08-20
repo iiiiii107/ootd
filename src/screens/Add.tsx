@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 
+import { ScreenTitle } from '../components/ScreenTitle';
 import { createItem, suggestName, updateItem } from '../db/items';
 import type { Category } from '../db/types';
 import { importPhoto } from '../images/pipeline';
@@ -88,8 +89,8 @@ export default function Add() {
   }
 
   return (
-    <div className="flex flex-col gap-5 px-5 py-6 pb-10">
-      <h1 className="font-display font-extrabold text-3xl lowercase tracking-[0.1em] text-ink">add</h1>
+    <div className="flex flex-col gap-5 px-5 pb-10">
+      <ScreenTitle>add</ScreenTitle>
 
       <div className="flex gap-3">
         <PickerButton label="Take photo" capture accept="image/*" onFiles={handleFiles} />

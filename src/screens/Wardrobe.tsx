@@ -4,6 +4,7 @@ import { BulkActionBar } from '../components/BulkActionBar';
 import { DetailSheet } from '../components/DetailSheet';
 import { FilterBar } from '../components/FilterBar';
 import { ItemTile } from '../components/ItemTile';
+import { ScreenTitle } from '../components/ScreenTitle';
 import { SearchBar } from '../components/SearchBar';
 import { SearchIcon } from '../components/icons';
 import { useWardrobeItems } from '../db/hooks';
@@ -91,7 +92,9 @@ export default function Wardrobe() {
   }
 
   return (
-    <div className="flex flex-col gap-3 px-4 pt-4 pb-24">
+    <div className="flex flex-col gap-3 px-4 pb-24">
+      <ScreenTitle>wardrobe</ScreenTitle>
+
       <div className="flex justify-end">
         <button
           type="button"
@@ -140,9 +143,6 @@ export default function Wardrobe() {
 
       {items.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 py-16 text-center">
-          <h1 className="font-display font-extrabold text-3xl lowercase tracking-[0.1em] text-ink">
-            wardrobe
-          </h1>
           <p className="max-w-xs text-[13px] leading-relaxed text-muted">
             Nothing here yet. Add a few photos to get started.
           </p>
