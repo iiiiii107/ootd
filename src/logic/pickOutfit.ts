@@ -102,9 +102,26 @@ function passesFilters(item: Item, filters: RandomizerFilters): boolean {
  * Pairing rules (spec §7.1). A null field on either item is compatible with
  * anything — untagged items are never blocked, only invisible under an
  * active filter (spec §13), which is a separate concern from `passesFilters`.
+ *
+ * **An active filter overrides the pairwise rule for that dimension.** Select
+ * spring + summer and you are saying both seasons are acceptable today, so a
+ * spring top may pair with a summer bottom — the filter has already thrown
+ * out everything autumn- or winter-only, and re-applying the mutual-overlap
+ * rule on top of it would quietly demand that both pieces share a season,
+ * which reads as "must be tagged both". Same for formality and vibe: what
+ * you selected defines the acceptable set, and anything inside it goes
+ * together. With no chips pressed, the original pairwise rules stand.
  */
-export function compatible(a: Item, b: Item, filters: Pick<RandomizerFilters, 'allowMixedVibe'>): boolean {
-  return seasonsOverlap(a, b) && formalityMatches(a, b) && vibeCompatible(a, b, filters.allowMixedVibe);
+export function compatible(
+  a: Item,
+  b: Item,
+  filters: Pick<RandomizerFilters, 'allowMixedVibe' | 'seasons' | 'formality' | 'vibe'>,
+): boolean {
+  return (
+    (filters.seasons.length > 0 || seasonsOverlap(a, b)) &&
+    (filters.formality.length > 0 || formalityMatches(a, b)) &&
+    (filters.vibe.length > 0 || vibeCompatible(a, b, filters.allowMixedVibe))
+  );
 }
 
 function seasonsOverlap(a: Item, b: Item): boolean {

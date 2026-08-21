@@ -12,32 +12,29 @@
  * `isnet_quint8` is the ~40MB quantized model, not the ~80MB default —
  * matching spec R3's stated size and the smallest reasonable footprint on
  * an iPhone.
+ *
+ * The segmentation runs **once per photo** and its result is used for two
+ * things: the cutout image itself, and the garment bounding box that
+ * pre-fills the crop box (src/images/crop.ts). Both features are separately
+ * switchable in Settings, but neither costs a second inference pass.
  */
+
+import { encodeWithAlpha } from './encode';
 
 const TIMEOUT_MS = 30_000;
 const SIZE = 400; // matches the thumb pipeline's own crop size (spec §4.1)
 const QUALITY = 0.82;
 
-export interface CutoutResult {
-  image: Blob;
-  thumb: Blob;
-  hasCutout: boolean;
-}
-
 /**
- * Attempts a cutout of `source` (the already resized/compressed photo).
- * Always resolves — never rejects — falling back to the plain photo (with
- * a plain re-cropped thumb) on any failure so a bad network never blocks
- * import (spec R3).
+ * Segments the subject out of `source`, returning a transparent PNG — or
+ * `null` if it couldn't be done for any reason at all. Never rejects: every
+ * caller's fallback is simply "carry on with the plain photo" (spec R3).
  */
-export async function removeBackground(source: Blob, plainThumb: Blob): Promise<CutoutResult> {
+export async function segment(source: Blob): Promise<Blob | null> {
   try {
-    const cutout = await withTimeout(runModel(source), TIMEOUT_MS);
-    const composited = await compositeOnWhite(cutout);
-    const thumb = await cropToThumb(composited);
-    return { image: composited, thumb, hasCutout: true };
+    return await withTimeout(runModel(source), TIMEOUT_MS);
   } catch {
-    return { image: source, thumb: plainThumb, hasCutout: false };
+    return null;
   }
 }
 
@@ -72,27 +69,14 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 /**
- * Flattens the cutout's transparency onto flat white (spec §8: "cutouts on
- * flat white make the grid read as a lookbook") and re-encodes as JPEG,
- * consistent with every other image this app stores.
+ * Same centre-crop the plain pipeline uses (src/images/process.ts), so cutout
+ * and plain thumbs are framed identically.
+ *
+ * `alpha` keeps the transparency rather than flattening it, so a cutout sits
+ * on the app's own paper background wherever it's shown instead of carrying a
+ * white rectangle around with it.
  */
-async function compositeOnWhite(cutout: Blob): Promise<Blob> {
-  const bitmap = await createImageBitmap(cutout);
-  try {
-    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
-    const ctx = canvas.getContext('2d');
-    if (!ctx) throw new Error('2D canvas context unavailable');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, bitmap.width, bitmap.height);
-    ctx.drawImage(bitmap, 0, 0);
-    return await canvas.convertToBlob({ type: 'image/jpeg', quality: QUALITY });
-  } finally {
-    bitmap.close();
-  }
-}
-
-/** Same centre-crop the plain pipeline uses (src/images/process.ts), so cutout and plain thumbs match. */
-async function cropToThumb(image: Blob): Promise<Blob> {
+export async function cropToThumb(image: Blob, alpha = false): Promise<Blob> {
   const bitmap = await createImageBitmap(image);
   try {
     const side = Math.min(bitmap.width, bitmap.height);
@@ -102,7 +86,7 @@ async function cropToThumb(image: Blob): Promise<Blob> {
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('2D canvas context unavailable');
     ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, SIZE, SIZE);
-    return await canvas.convertToBlob({ type: 'image/jpeg', quality: QUALITY });
+    return alpha ? await encodeWithAlpha(canvas) : await canvas.convertToBlob({ type: 'image/jpeg', quality: QUALITY });
   } finally {
     bitmap.close();
   }

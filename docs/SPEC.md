@@ -61,9 +61,9 @@ IndexedDB via **Dexie.js**. Three stores.
 | `hasCutout` | boolean | yes | Whether background removal succeeded |
 | `seasons` | array of `'spring'\|'summer'\|'autumn'\|'winter'` | no | **Multi-select. Exactly these four values — no "transitional", no "all-year" value; year-round items get all four ticked.** |
 | `formality` | `'formal' \| 'casual' \| 'home' \| null` | no | **Single-select.** |
-| `location` | `'home' \| 'university' \| 'elsewhere' \| null` | no | Single. Three values only — no sub-locations. |
+| `location` | `'university' \| 'linh' \| 'home' \| 'elsewhere' \| null` | no | Single. Four values only — no sub-locations. `linh` displays as "@Linh" (added in Phase 6.5); the stored value stays a plain slug so relabelling never touches stored items or backups. Listed in display order. |
 | `elsewhereNote` | string | no | Free text, only shown when `location === 'elsewhere'` |
-| `vibe` | `'masculine' \| 'feminine' \| 'androgynous' \| null` | no | Single |
+| `vibe` | `'masculine' \| 'androgynous' \| 'feminine' \| null` | no | Single. Listed in display order — androgynous sits between the two it pairs with. |
 | `favorite` | boolean | yes | Default `false`. Standalone toggle, independent of all other tags. |
 | `inWash` | boolean | yes | Default `false`. **Availability toggle** — see §6. |
 | `customTags` | string[] | yes | Default `[]`. IDs into the `tags` store. |
@@ -169,6 +169,13 @@ compatible(a, b):
     // items with a null field on any of the above are treated as compatible (untagged ≠ blocked),
     // but only surface if that group has no active filter (see §5)
 
+    // An ACTIVE FILTER OVERRIDES the pairwise rule for that dimension (revised in Phase 6.5).
+    // Pressing spring + summer says both seasons are acceptable today, so a spring top may
+    // pair with a summer bottom — the filter has already removed everything autumn- or
+    // winter-only, and re-applying mutual overlap on top of it quietly demands that both
+    // pieces be tagged the same, which reads as "must belong to both". Same for formality
+    // and vibe. With no chips pressed for a dimension, the pairwise rule above stands.
+
 weight(item):
     1.0
     × 1.4 if item.favorite
@@ -183,9 +190,12 @@ pick: weighted-random a top, then weighted-random a bottom from those compatible
 ### 7.2 Wardrobe
 
 - **Search is a toggle, not pinned open** *(revised — the user asked for this after using Phase 2 live)*: a small `search` control reveals the text field; closing it clears the query rather than leaving a hidden filter active. Free text matches `name` and `notes`. Beneath it, horizontally scrolling chip rows — one row per tag group, including custom groups — plus `favourites`, `in the wash`, `needs tagging`, `archived`, all rendered lowercase like the rest of the app's labels.
-- Dense image grid: 2 columns on phone, 4–6 on desktop, square thumbs, 1px gaps.
-- **Locked default sort: newest first.** Offer sort by name, by last worn, by category.
+- **Two quick-filter icons sit beside the search control** *(added in Phase 6.5)*: a laundry basket isolating what's in the wash, and a heart isolating favourites. Both are plain toggles over the same filter state the chip rows edit, so pressing one here and clearing it down there are the same switch rather than two competing ones.
+- Dense image grid: **3 columns on phone** *(revised in Phase 6.5 — 2 was more air than the grid needed)*, 4–6 on desktop, square thumbs, 1px gaps.
+- **Locked default sort: last worn** *(revised in Phase 6.5 — newest only stays interesting during an import session; what's been in rotation and what hasn't is the standing question)*. Also sort by newest, name, category.
+- **Every sort reverses.** Tapping the active sort flips it, and the reversed direction is named rather than shown as an arrow: newest ⇄ **oldest**, last worn ⇄ **not worn in ages**, a–z ⇄ z–a. Reversed `last worn` leads with never-worn items, because forward order deliberately sinks them to the back.
 - Tap → detail sheet: full image, editable name, all tag groups as chips, heart, wash toggle, location quick-change, wear log, notes, archive, delete.
+- **The wear log is an action, not a readout** *(added in Phase 6.5)*: an "I wore this" button sets `lastWornAt` and increments `wearCount` right there. Until then the only way to log a wear was the randomizer's own result card, which left no way at all to log something picked out by hand. On a saved outfit it counts for every member piece too.
 - **Multi-select mode** for bulk edits — essential for "everything in this box is going to university" and for clearing a laundry load.
 
 ### 7.3 Outfits
@@ -194,13 +204,23 @@ Same grid filtered to `category: 'outfit'`, larger cards. **Both kinds live here
 
 ### 7.4 Add
 
-Camera or library picker, **multi-select** (dump 20 photos at once) → processing queue with per-photo progress → tagging.
+Camera or library picker, **multi-select** (dump 20 photos at once) → per-photo crop → save → tagging. *(Revised in Phase 6.5 — crop and immediate tagging were both added after using Phase 1 live.)*
 
-**Tagging is never mandatory beyond category.** Items save immediately with everything else blank and appear under the `needs tagging` filter to be finished later on the sofa. A **"same tags as previous"** button, because five tops in a row usually share everything.
+Each photo goes through three beats, one photo at a time:
+
+1. **Analyse** — decode, resize, and find the garment if automatic detection is on.
+2. **Crop** — before saving, never after, so the stored photo is already the one you meant and no uncropped original sits around eating storage. **Automatic clothes detection** pre-draws the box around the garment, making this usually a single tap; the box is freely draggable and "use whole photo" is always one tap away. The padding errs generous: a loose box costs one drag, a box that clips a sleeve has to be noticed first.
+3. **Tag** — the full tag set, inline, while the garment is still in hand.
+
+**Detection is the same single inference pass as background removal** — the segmentation model's alpha mask *is* the garment outline, so its bounding box comes free. The two are separately switchable in Settings but having both on costs no more than either alone. Bounds come from the alpha *mass* per row and column, discarding the outermost 1% on each axis: segmentation leaves a faint haze across the frame, and a plain min/max scan over "any pixel above the threshold" latches onto that haze and reports the whole frame.
+
+**Tagging is never mandatory beyond category.** Items save the moment the crop is confirmed, so walking away mid-tagging loses nothing, and anything skipped appears under the `needs tagging` filter to be finished later on the sofa. Category carries forward to the next photo, because five tops in a row usually share everything.
 
 ### 7.5 Settings
 
-Manage tag groups · **Export backup** · **Import backup** · storage used · background-removal toggle · trash (restore/empty) · archived items · delete everything.
+Manage tag groups · **Export backup** · **Import backup** · storage used · automatic-detection toggle · background-removal toggle · trash (restore/empty) · archived items · delete everything.
+
+**Laundry reminder** *(added in Phase 6.5)*: once 15 or more items are in the wash, an app-wide message says so — *"So many items in the wash? You really should do your laundry!"* Dismissal is per-session only, like the backup nag: the pile doesn't go away because it was waved off once, and the message stops on its own the moment items come back out.
 
 ---
 
@@ -211,7 +231,7 @@ Minimal but fashionable, meaning: the clothes are the only colour on screen.
 - Paper off-white background `#FAF9F7`, near-black text `#1A1A1A`, mid-grey `#8A8681` for secondary. One restrained accent for interactive/selected states. Everything else greyscale.
 - Typography does the fashion work: **Sniglet** (bold, 800) for the `ootd` wordmark and screen titles — a bubble-letter, Comic-Sans-family display face; **Comic Neue** for all UI, the same cartoon family but legible down to chip and caption sizes. Lowercase wordmark, wide letterspacing. *(Revised from the original editorial-serif direction — the user asked for a black-and-white, cartoon-ish vibe after seeing Phase 0/1 running. Both fonts are self-hosted via `@fontsource`, same offline guarantee as before.)*
 - No drop shadows, no gradients, no rounded-everything. Hairline rules, generous whitespace, images edge-to-edge in the grid.
-- Cutouts on flat white make the grid read as a lookbook rather than a camera roll — this is why background removal earns its complexity.
+- Cutouts make the grid read as a lookbook rather than a camera roll — this is why background removal earns its complexity. **Revised in Phase 6.5:** cutouts keep their transparency instead of being flattened onto flat white, so a garment sits directly on the app's own paper ground wherever it appears. Stored as WebP-with-alpha where the browser can encode it, PNG otherwise — a PNG-only pipeline would blow the ~250KB/item storage budget in §11.
 - Motion minimal and fast: shuffle is a quick card cross-fade, not a slot-machine animation. Tasteful over cute.
 - Dark mode: inverted, warm black.
 - 44px minimum tap targets; respect `env(safe-area-inset-*)` so nothing hides under the iPhone home bar.

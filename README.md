@@ -8,7 +8,15 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 
 ## Status
 
-**Phase 6 complete** — custom tags + backup. A Settings screen (reached from the gear icon in the app shell, not one of the four main tabs) adds: a tag-group manager (create, add/rename/delete values, merge, usage counts — verified a group created there shows up in the wardrobe filter bar with zero code changes, the spec's core requirement for this system); export/import as a real `.ootd` zip via fflate; a storage meter; the background-removal toggle (relocated here from Add, its proper home per spec); trash (restore / delete now / empty); archived items (unarchive); and a type-DELETE-to-confirm wipe-everything option. A dismissible-per-session backup nag appears app-wide when it's been over 30 days since the last export and new items exist.
+**Phase 6.5 complete** — a round of changes driven by actually using the app.
+
+- **Crop before saving.** Every photo goes picker → crop → save → tag. **Automatic clothes detection** pre-draws the crop box around the garment, so it's usually one tap; it reuses the background-removal model's own alpha mask, so it costs no extra download and no second inference pass. Separately switchable in Settings.
+- **Tag on import**, inline, instead of hunting the item down in the wardrobe afterwards.
+- **Cutouts keep their transparency** rather than being flattened onto white, so garments sit on the app's own paper ground. WebP-with-alpha where the browser can encode it, PNG otherwise.
+- **Wardrobe:** 3 columns on phone, laundry-basket and heart quick filters beside the search control, last-worn as the default sort, and every sort reverses with a real name for the reversed direction (newest ⇄ oldest, last worn ⇄ not worn in ages).
+- **"I wore this"** in the detail sheet. Previously the only way to log a wear was the randomizer's result card, which left no way at all to log something picked out by hand.
+- **Randomizer pairing fixed:** an active filter now defines the acceptable set for that dimension, so pressing spring + summer pairs a spring top with a summer bottom instead of quietly demanding both pieces share a season.
+- **Laundry reminder** at 15+ items in the wash, plus the `@Linh` location and a considered order for the location and vibe chips.
 
 Still open: Phase 5's visual design pass, deferred until there are real garment photos to design against (everything so far has run on synthetic test swatches), and Phase 7's real-device testing.
 
@@ -21,11 +29,8 @@ Still open: Phase 5's visual design pass, deferred until there are real garment 
 | 4 | Outfits view, composites | done |
 | 5 | Background removal, design pass | background removal done; design pass pending real photos |
 | 6 | Custom tags, export/import backup | done |
+| 6.5 | Crop + detection, tag on import, transparent cutouts, wardrobe controls | done |
 | 7 | Real-device testing | next |
-| 4 | Outfits view, composites | |
-| 5 | Background removal, design pass | |
-| 6 | Custom tags, export/import backup | |
-| 7 | Real-device testing | |
 
 ## Running it
 

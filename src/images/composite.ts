@@ -1,4 +1,5 @@
 import type { Item } from '../db/types';
+import { encodeWithAlpha } from './encode';
 
 /**
  * Save-as-outfit composite (spec §7.1, §4.1): stacks each member's already-
@@ -30,7 +31,12 @@ export async function composeOutfitThumb(members: Item[]): Promise<Blob> {
       ctx.drawImage(bitmap, sx, sy, side, side, 0, y, SIZE, height);
     });
 
-    return await canvas.convertToBlob({ type: 'image/jpeg', quality: QUALITY });
+    // Transparency is only worth its file size when a member actually has
+    // some: a stack of cutouts should show the app's background between the
+    // pieces, while a stack of ordinary photos is opaque anyway.
+    return members.some((member) => member.hasCutout)
+      ? await encodeWithAlpha(canvas)
+      : await canvas.convertToBlob({ type: 'image/jpeg', quality: QUALITY });
   } finally {
     bitmaps.forEach((bitmap) => bitmap.close());
   }

@@ -56,19 +56,19 @@ describe('compatible — seasons', () => {
   it('requires overlap when both are tagged', () => {
     const summer = makeItem({ seasons: ['summer'] });
     const winter = makeItem({ seasons: ['winter'] });
-    expect(compatible(summer, winter, { allowMixedVibe: false })).toBe(false);
+    expect(compatible(summer, winter, filters())).toBe(false);
   });
 
   it('a four-season item pairs with a single-season item', () => {
     const fourSeason = makeItem({ seasons: ['spring', 'summer', 'autumn', 'winter'] });
     const winterOnly = makeItem({ seasons: ['winter'] });
-    expect(compatible(fourSeason, winterOnly, { allowMixedVibe: false })).toBe(true);
+    expect(compatible(fourSeason, winterOnly, filters())).toBe(true);
   });
 
   it('an untagged season is compatible with anything (not blocked)', () => {
     const untagged = makeItem({ seasons: [] });
     const winter = makeItem({ seasons: ['winter'] });
-    expect(compatible(untagged, winter, { allowMixedVibe: false })).toBe(true);
+    expect(compatible(untagged, winter, filters())).toBe(true);
   });
 });
 
@@ -76,19 +76,19 @@ describe('compatible — formality', () => {
   it('requires an exact match when both are tagged', () => {
     const formal = makeItem({ formality: 'formal' });
     const casual = makeItem({ formality: 'casual' });
-    expect(compatible(formal, casual, { allowMixedVibe: false })).toBe(false);
+    expect(compatible(formal, casual, filters())).toBe(false);
   });
 
   it('matches when both share the same value', () => {
     const a = makeItem({ formality: 'casual' });
     const b = makeItem({ formality: 'casual' });
-    expect(compatible(a, b, { allowMixedVibe: false })).toBe(true);
+    expect(compatible(a, b, filters())).toBe(true);
   });
 
   it('an untagged formality is compatible with anything', () => {
     const untagged = makeItem({ formality: null });
     const formal = makeItem({ formality: 'formal' });
-    expect(compatible(untagged, formal, { allowMixedVibe: false })).toBe(true);
+    expect(compatible(untagged, formal, filters())).toBe(true);
   });
 });
 
@@ -96,37 +96,83 @@ describe('compatible — vibe', () => {
   it('androgynous pairs with masculine', () => {
     const a = makeItem({ vibe: 'androgynous' });
     const b = makeItem({ vibe: 'masculine' });
-    expect(compatible(a, b, { allowMixedVibe: false })).toBe(true);
+    expect(compatible(a, b, filters())).toBe(true);
   });
 
   it('androgynous pairs with feminine', () => {
     const a = makeItem({ vibe: 'androgynous' });
     const b = makeItem({ vibe: 'feminine' });
-    expect(compatible(a, b, { allowMixedVibe: false })).toBe(true);
+    expect(compatible(a, b, filters())).toBe(true);
   });
 
   it('masculine + feminine is rejected by default', () => {
     const a = makeItem({ vibe: 'masculine' });
     const b = makeItem({ vibe: 'feminine' });
-    expect(compatible(a, b, { allowMixedVibe: false })).toBe(false);
+    expect(compatible(a, b, filters())).toBe(false);
   });
 
   it('masculine + feminine is allowed when allowMixedVibe is set', () => {
     const a = makeItem({ vibe: 'masculine' });
     const b = makeItem({ vibe: 'feminine' });
-    expect(compatible(a, b, { allowMixedVibe: true })).toBe(true);
+    expect(compatible(a, b, filters({ allowMixedVibe: true }))).toBe(true);
   });
 
   it('same vibe always matches', () => {
     const a = makeItem({ vibe: 'masculine' });
     const b = makeItem({ vibe: 'masculine' });
-    expect(compatible(a, b, { allowMixedVibe: false })).toBe(true);
+    expect(compatible(a, b, filters())).toBe(true);
   });
 
   it('an untagged vibe is compatible with anything', () => {
     const untagged = makeItem({ vibe: null });
     const masculine = makeItem({ vibe: 'masculine' });
-    expect(compatible(untagged, masculine, { allowMixedVibe: false })).toBe(true);
+    expect(compatible(untagged, masculine, filters())).toBe(true);
+  });
+});
+
+describe('compatible — an active filter defines the acceptable set', () => {
+  it('pairs a spring top with a summer bottom when spring + summer are both selected', () => {
+    const springTop = makeItem({ seasons: ['spring'] });
+    const summerBottom = makeItem({ seasons: ['summer'] });
+    // Without the filter these don't overlap, so the pairwise rule rejects them.
+    expect(compatible(springTop, summerBottom, filters())).toBe(false);
+    expect(compatible(springTop, summerBottom, filters({ seasons: ['spring', 'summer'] }))).toBe(
+      true,
+    );
+  });
+
+  it('still excludes autumn- and winter-only items — via the filter, not the pairing', () => {
+    const winterOnly = makeItem({ category: 'top', seasons: ['winter'] });
+    const springOnly = makeItem({ category: 'bottom', seasons: ['spring'] });
+    const result = pickOutfit(
+      [winterOnly, springOnly],
+      filters({ seasons: ['spring', 'summer'] }),
+      [],
+      { rng: fixedRng(0.5) },
+    );
+    expect(result).toEqual({ status: 'empty', reason: 'no-tops' });
+  });
+
+  it('pairs a casual top with a formal bottom when both formalities are selected', () => {
+    const casual = makeItem({ formality: 'casual' });
+    const formal = makeItem({ formality: 'formal' });
+    expect(compatible(casual, formal, filters())).toBe(false);
+    expect(compatible(casual, formal, filters({ formality: ['casual', 'formal'] }))).toBe(true);
+  });
+
+  it('pairs masculine with feminine when both vibes are selected, without allowMixedVibe', () => {
+    const masculine = makeItem({ vibe: 'masculine' });
+    const feminine = makeItem({ vibe: 'feminine' });
+    expect(compatible(masculine, feminine, filters())).toBe(false);
+    expect(compatible(masculine, feminine, filters({ vibe: ['masculine', 'feminine'] }))).toBe(true);
+  });
+
+  it('leaves the other dimensions alone — a season filter does not relax formality', () => {
+    const formalTop = makeItem({ seasons: ['spring'], formality: 'formal' });
+    const casualBottom = makeItem({ seasons: ['summer'], formality: 'casual' });
+    expect(compatible(formalTop, casualBottom, filters({ seasons: ['spring', 'summer'] }))).toBe(
+      false,
+    );
   });
 });
 

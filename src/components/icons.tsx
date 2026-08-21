@@ -44,6 +44,48 @@ export function LockIcon({ locked, className }: { locked: boolean; className?: s
   );
 }
 
+/**
+ * The wardrobe's laundry shortcut — a basket with its weave suggested by two
+ * crossing lines. Filled when the filter is on, so it reads as pressed at a
+ * glance rather than needing a border.
+ */
+export function BasketIcon({ filled, className }: { filled?: boolean; className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M2.5 7.5h15l-1.6 8.2a1.5 1.5 0 0 1-1.5 1.3H5.6a1.5 1.5 0 0 1-1.5-1.3Z" fill={filled ? 'currentColor' : 'none'} />
+      <path d="M6.5 7.5 9 3M13.5 7.5 11 3" />
+      {!filled && <path d="M7 11l1 3M13 11l-1 3M10 11v3" />}
+    </svg>
+  );
+}
+
+/** The wardrobe's favourites shortcut. Matches the heart already used in the detail sheet. */
+export function HeartIcon({ filled, className }: { filled?: boolean; className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <path d="M10 16.5S3 12.4 3 7.9A3.9 3.9 0 0 1 10 5.6a3.9 3.9 0 0 1 7 2.3c0 4.5-7 8.6-7 8.6Z" />
+    </svg>
+  );
+}
+
 /** Entry point to Settings (spec §7.5) — the only nav element outside the tab bar. */
 export function GearIcon({ className }: { className?: string }) {
   return (

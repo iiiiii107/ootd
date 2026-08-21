@@ -59,7 +59,7 @@ export function ItemTile({
       onPointerUp={cancelPress}
       onPointerLeave={cancelPress}
       onClick={handleClick}
-      className="relative aspect-square bg-sunken"
+      className="relative aspect-square bg-paper"
     >
       {url && (
         <img src={url} alt={item.name} className="h-full w-full object-cover" loading="lazy" />

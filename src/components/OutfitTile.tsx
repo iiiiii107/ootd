@@ -11,7 +11,7 @@ export function OutfitTile({ item, onTap }: { item: Item; onTap: () => void }) {
 
   return (
     <button type="button" onClick={onTap} className="flex flex-col border border-rule text-left">
-      <div className="relative aspect-square bg-sunken">
+      <div className="relative aspect-square bg-paper">
         {url && (
           <img src={url} alt={item.name} className="h-full w-full object-cover" loading="lazy" />
         )}

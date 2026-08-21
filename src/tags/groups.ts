@@ -103,15 +103,18 @@ export const FORMALITY_GROUP = singleSelectGroup('formality', 'Formality', 'form
 ]);
 
 export const LOCATION_GROUP = singleSelectGroup('location', 'Location', 'location', [
-  { value: 'home', label: 'home' },
   { value: 'university', label: 'university' },
+  { value: 'linh', label: '@Linh' },
+  { value: 'home', label: 'home' },
   { value: 'elsewhere', label: 'elsewhere' },
 ]);
 
+// Ordered masculine → androgynous → feminine so the value that pairs with
+// everything (spec §7.1's vibe rule) sits between the two it reconciles.
 export const VIBE_GROUP = singleSelectGroup('vibe', 'Vibe', 'vibe', [
   { value: 'masculine', label: 'masculine' },
-  { value: 'feminine', label: 'feminine' },
   { value: 'androgynous', label: 'androgynous' },
+  { value: 'feminine', label: 'feminine' },
 ]);
 
 /**

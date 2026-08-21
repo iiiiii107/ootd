@@ -5,6 +5,7 @@ import { purgeExpiredTrash } from '../db/items';
 import { BackupNag } from './BackupNag';
 import { GearIcon } from './icons';
 import { InstallBanner } from './InstallBanner';
+import { LaundryNag } from './LaundryNag';
 import { TabBar } from './TabBar';
 
 /**
@@ -23,6 +24,7 @@ export function Layout() {
     <div className="flex min-h-dvh flex-col bg-paper">
       <InstallBanner />
       <BackupNag />
+      <LaundryNag />
       <div className="flex justify-end px-4 pt-2">
         <Link
           to="/settings"

@@ -172,4 +172,33 @@ describe('sortItems', () => {
     const items = [makeItem({ name: 'b' }), makeItem({ name: 'a' })];
     expect(sortItems(items, 'newest').map((i) => i.name)).toEqual(['b', 'a']);
   });
+
+  it('reversed newest is oldest-first', () => {
+    const items = [makeItem({ name: 'newer' }), makeItem({ name: 'older' })];
+    expect(sortItems(items, 'newest', true).map((i) => i.name)).toEqual(['older', 'newer']);
+  });
+
+  it('reversed lastWorn leads with never-worn, then longest-ago', () => {
+    const items = [
+      makeItem({ name: 'recent', lastWornAt: 5000 }),
+      makeItem({ name: 'never', lastWornAt: null }),
+      makeItem({ name: 'old', lastWornAt: 1000 }),
+    ];
+    expect(sortItems(items, 'lastWorn', true).map((i) => i.name)).toEqual([
+      'never',
+      'old',
+      'recent',
+    ]);
+  });
+
+  it('reversed name is z-a', () => {
+    const items = [makeItem({ name: 'apple' }), makeItem({ name: 'zebra' })];
+    expect(sortItems(items, 'name', true).map((i) => i.name)).toEqual(['zebra', 'apple']);
+  });
+
+  it('reversing never mutates the array it was given', () => {
+    const items = [makeItem({ name: 'a' }), makeItem({ name: 'b' })];
+    sortItems(items, 'newest', true);
+    expect(items.map((i) => i.name)).toEqual(['a', 'b']);
+  });
 });

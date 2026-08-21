@@ -71,6 +71,22 @@ export function useArchivedItems(): Item[] | undefined {
   );
 }
 
+/**
+ * How many items are sitting in the wash right now. Archived and trashed
+ * items don't count — they aren't in a real laundry basket, whatever their
+ * stale `inWash` flag says.
+ *
+ * Filtered rather than index-queried: IndexedDB can't use a boolean as a key,
+ * so the `inWash` index in the schema never actually serves a lookup.
+ */
+export function useWashCount(): number {
+  const count = useLiveQuery(
+    () => db.items.filter((item) => item.inWash && !item.archived && item.deletedAt == null).count(),
+    [],
+  );
+  return count ?? 0;
+}
+
 /** A single item, live — independent of any filtered list it might drop out of mid-edit. */
 export function useItem(id: string | null): Item | undefined {
   return useLiveQuery(() => (id ? db.items.get(id) : undefined), [id]);
@@ -82,10 +98,25 @@ export function useItem(id: string | null): Item | undefined {
  * there is picked up immediately by Add without needing a remount.
  */
 export function useCutoutEnabled(): boolean {
+  return useFlag('backgroundRemovalEnabled');
+}
+
+/**
+ * Automatic garment detection: whether the crop box arrives pre-drawn around
+ * the clothing rather than around the whole frame. On by default, off-switch
+ * in Settings alongside background removal — the two share one inference pass
+ * (src/images/pipeline.ts) but are genuinely independent choices.
+ */
+export function useAutoDetectEnabled(): boolean {
+  return useFlag('autoDetectEnabled');
+}
+
+/** A boolean in `meta`, defaulting to on — both photo features are locked defaults (spec §2). */
+function useFlag(key: string): boolean {
   const value = useLiveQuery(async () => {
-    const entry = await db.meta.get('backgroundRemovalEnabled');
+    const entry = await db.meta.get(key);
     return (entry?.value as boolean | undefined) ?? true;
-  }, []);
+  }, [key]);
   return value ?? true;
 }
 

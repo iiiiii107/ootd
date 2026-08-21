@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { TagGroupManager } from '../components/TagGroupManager';
 import { exportBackup, importBackup } from '../db/backup';
-import { useArchivedItems, useCutoutEnabled, useTrashedItems } from '../db/hooks';
+import { useArchivedItems, useAutoDetectEnabled, useCutoutEnabled, useTrashedItems } from '../db/hooks';
 import { archiveItem, deleteEverything, emptyTrash, hardDeleteItem, restoreItem } from '../db/items';
 import { setMeta } from '../db/meta';
 import { useObjectUrl } from '../lib/useObjectUrl';
@@ -70,25 +70,61 @@ function formatBytes(bytes: number): string {
 }
 
 function CutoutSection() {
-  const enabled = useCutoutEnabled();
+  const cutout = useCutoutEnabled();
+  const detect = useAutoDetectEnabled();
 
   return (
     <Section title="Photos">
-      <button
-        type="button"
-        onClick={() => void setMeta('backgroundRemovalEnabled', !enabled)}
-        aria-pressed={enabled}
-        className={`min-h-11 w-fit border px-3 text-[13px] ${
-          enabled ? 'border-ink bg-ink text-paper' : 'border-rule text-ink'
-        }`}
-      >
-        {enabled ? 'Removing backgrounds automatically' : 'Background removal off'}
-      </button>
-      <p className="text-[12px] text-muted">
-        Runs entirely on this device. The first photo after turning this on downloads a one-time
-        ~40MB model file.
+      <Toggle
+        on={detect}
+        onLabel="Finding clothes automatically"
+        offLabel="Automatic detection off"
+        onClick={() => void setMeta('autoDetectEnabled', !detect)}
+      />
+      <p className="text-[12px] leading-relaxed text-muted">
+        Draws the crop box around the garment for you when you add a photo. You can always drag it
+        yourself, or turn this off to start from the whole frame every time.
+      </p>
+
+      <Toggle
+        on={cutout}
+        onLabel="Removing backgrounds automatically"
+        offLabel="Background removal off"
+        onClick={() => void setMeta('backgroundRemovalEnabled', !cutout)}
+      />
+      <p className="text-[12px] leading-relaxed text-muted">
+        Both of these run entirely on this device, and share the same work — having both on is no
+        slower than one.{' '}
+        {cutout || detect
+          ? 'The first photo downloads a one-time ~40MB model file.'
+          : 'With both off, no model is downloaded at all.'}
       </p>
     </Section>
+  );
+}
+
+function Toggle({
+  on,
+  onLabel,
+  offLabel,
+  onClick,
+}: {
+  on: boolean;
+  onLabel: string;
+  offLabel: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={`min-h-11 w-fit border px-3 text-[13px] ${
+        on ? 'border-ink bg-ink text-paper' : 'border-rule text-ink'
+      }`}
+    >
+      {on ? onLabel : offLabel}
+    </button>
   );
 }
 
@@ -273,7 +309,7 @@ function DangerZone() {
 function MiniThumb({ blob, name }: { blob: Blob; name: string }) {
   const url = useObjectUrl(blob);
   return (
-    <div className="h-12 w-12 shrink-0 bg-sunken">
+    <div className="h-12 w-12 shrink-0 bg-paper">
       {url && <img src={url} alt={name} className="h-full w-full object-cover" />}
     </div>
   );

@@ -250,7 +250,7 @@ function ResultCard({
   const url = useObjectUrl(item.thumb);
   return (
     <div className="relative border border-rule">
-      <div className="aspect-square bg-sunken">
+      <div className="aspect-square bg-paper">
         {url && <img src={url} alt={item.name} className="h-full w-full object-cover" />}
       </div>
       {lockable && (

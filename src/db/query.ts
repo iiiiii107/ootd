@@ -77,17 +77,33 @@ export type SortKey = 'newest' | 'name' | 'lastWorn' | 'category';
 const CATEGORY_ORDER: Item['category'][] = ['top', 'bottom', 'other', 'outfit'];
 
 /**
+ * Every sort runs in one direction and is then optionally reversed, rather
+ * than each key carrying two comparators. That keeps the reversed meaning
+ * of each key honest and automatic: `newest` reversed is oldest-first, and
+ * `lastWorn` reversed puts never-worn items at the very front, because
+ * forward-order deliberately sinks them to the very back.
+ *
  * `items` is assumed newest-first already (the base Dexie query orders it
  * that way), so `newest` is a no-op pass-through rather than a re-sort.
  */
-export function sortItems(items: Item[], sortKey: SortKey): Item[] {
+export function sortItems(items: Item[], sortKey: SortKey, reversed = false): Item[] {
+  const sorted = sortForward(items, sortKey);
+  if (!reversed) return sorted;
+  // `sortForward` may have returned `items` itself (the `newest` case), so
+  // copy before reversing — never mutate the caller's array in place.
+  return [...sorted].reverse();
+}
+
+function sortForward(items: Item[], sortKey: SortKey): Item[] {
   switch (sortKey) {
     case 'newest':
       return items;
     case 'name':
       return [...items].sort((a, b) => a.name.localeCompare(b.name));
     case 'lastWorn':
-      // Never-worn items sort last, not first — they're not "least recent", they're unknown.
+      // Never-worn items sort last, not first — they're not "least recent",
+      // they're unknown. Reversed, that lands them first, which is exactly
+      // right for "what have I not worn in ages".
       return [...items].sort((a, b) => (b.lastWornAt ?? -Infinity) - (a.lastWornAt ?? -Infinity));
     case 'category':
       return [...items].sort(

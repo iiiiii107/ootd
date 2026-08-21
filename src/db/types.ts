@@ -12,9 +12,15 @@ export type Season = 'spring' | 'summer' | 'autumn' | 'winter';
 /** Single-select. Black jeans worn both at home and out get exactly one value. */
 export type Formality = 'formal' | 'casual' | 'home';
 
-export type Location = 'home' | 'university' | 'elsewhere';
+/**
+ * Where a garment physically is right now (spec §4.2). `linh` is a named
+ * place like the other two — its stored value stays this plain slug while
+ * the label reads "@Linh", so renaming the label later never has to touch
+ * stored items or backups.
+ */
+export type Location = 'university' | 'linh' | 'home' | 'elsewhere';
 
-export type Vibe = 'masculine' | 'feminine' | 'androgynous';
+export type Vibe = 'masculine' | 'androgynous' | 'feminine';
 
 export interface Item {
   /** Primary key, UUID. */

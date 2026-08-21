@@ -6,7 +6,7 @@ import { FilterBar } from '../components/FilterBar';
 import { ItemTile } from '../components/ItemTile';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { SearchBar } from '../components/SearchBar';
-import { SearchIcon } from '../components/icons';
+import { BasketIcon, HeartIcon, SearchIcon } from '../components/icons';
 import { useWardrobeItems } from '../db/hooks';
 import { getMeta, setMeta } from '../db/meta';
 import { DEFAULT_FILTER_STATE, filterItems, sortItems, type FilterState, type SortKey } from '../db/query';
@@ -14,12 +14,19 @@ import { useGroups } from '../tags/useGroups';
 
 const FILTER_STATE_KEY = 'wardrobeFilterState';
 const SORT_KEY_KEY = 'wardrobeSortKey';
+const SORT_REVERSED_KEY = 'wardrobeSortReversed';
 
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: 'newest', label: 'newest' },
-  { value: 'name', label: 'name' },
-  { value: 'lastWorn', label: 'last worn' },
-  { value: 'category', label: 'category' },
+/**
+ * Each sort has a real name in both directions rather than an abstract
+ * asc/desc arrow — "oldest" and "not worn in ages" are what you actually
+ * want to ask for. The reversed name is only shown while that sort is the
+ * active one, so the row stays short.
+ */
+const SORT_OPTIONS: { value: SortKey; label: string; reversedLabel: string }[] = [
+  { value: 'lastWorn', label: 'last worn', reversedLabel: 'not worn in ages' },
+  { value: 'newest', label: 'newest', reversedLabel: 'oldest' },
+  { value: 'name', label: 'a–z', reversedLabel: 'z–a' },
+  { value: 'category', label: 'category', reversedLabel: 'category ↑' },
 ];
 
 /**
@@ -33,7 +40,11 @@ export default function Wardrobe() {
   const groups = useGroups();
 
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
-  const [sortKey, setSortKey] = useState<SortKey>('newest');
+  // Last-worn is the default view (not newest): the useful question about a
+  // wardrobe is what's been in rotation and what hasn't, which only matters
+  // once the import session is over and the grid stops changing.
+  const [sortKey, setSortKey] = useState<SortKey>('lastWorn');
+  const [sortReversed, setSortReversed] = useState(false);
   const [loadedPersisted, setLoadedPersisted] = useState(false);
 
   const [openItemId, setOpenItemId] = useState<string | null>(null);
@@ -45,12 +56,14 @@ export default function Wardrobe() {
   // across app launches"). Loaded async, so writes below wait for this first.
   useEffect(() => {
     void (async () => {
-      const [savedFilters, savedSort] = await Promise.all([
+      const [savedFilters, savedSort, savedReversed] = await Promise.all([
         getMeta<FilterState>(FILTER_STATE_KEY),
         getMeta<SortKey>(SORT_KEY_KEY),
+        getMeta<boolean>(SORT_REVERSED_KEY),
       ]);
       if (savedFilters) setFilters(savedFilters);
       if (savedSort) setSortKey(savedSort);
+      if (savedReversed != null) setSortReversed(savedReversed);
       setLoadedPersisted(true);
     })();
   }, []);
@@ -63,10 +76,23 @@ export default function Wardrobe() {
     if (loadedPersisted) void setMeta(SORT_KEY_KEY, sortKey);
   }, [sortKey, loadedPersisted]);
 
+  useEffect(() => {
+    if (loadedPersisted) void setMeta(SORT_REVERSED_KEY, sortReversed);
+  }, [sortReversed, loadedPersisted]);
+
   const visible = useMemo(() => {
     if (!items) return undefined;
-    return sortItems(filterItems(items, filters, groups), sortKey);
-  }, [items, filters, groups, sortKey]);
+    return sortItems(filterItems(items, filters, groups), sortKey, sortReversed);
+  }, [items, filters, groups, sortKey, sortReversed]);
+
+  /** Tapping the active sort flips its direction; tapping another switches to it, forwards. */
+  function chooseSort(value: SortKey) {
+    if (value === sortKey) setSortReversed((r) => !r);
+    else {
+      setSortKey(value);
+      setSortReversed(false);
+    }
+  }
 
   function toggleSelected(id: string) {
     setSelectedIds((prev) => {
@@ -95,7 +121,35 @@ export default function Wardrobe() {
     <div className="flex flex-col gap-3 px-4 pb-24">
       <ScreenTitle>wardrobe</ScreenTitle>
 
-      <div className="flex justify-end">
+      {/*
+        Two one-tap shortcuts for the filters people actually reach for, next
+        to the spyglass that opens the full set. Both are plain toggles over
+        the same FilterState the filter bar edits, so pressing one here and
+        clearing it down there are the same switch, not two competing ones.
+      */}
+      <div className="flex justify-end gap-1">
+        <button
+          type="button"
+          onClick={() => setFilters({ ...filters, washOnly: !filters.washOnly })}
+          aria-pressed={filters.washOnly}
+          className={`flex min-h-11 min-w-11 items-center justify-center ${
+            filters.washOnly ? 'text-ink' : 'text-muted'
+          }`}
+          aria-label={filters.washOnly ? 'Show everything again' : 'Show only what is in the wash'}
+        >
+          <BasketIcon filled={filters.washOnly} className="h-5 w-5" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setFilters({ ...filters, favoritesOnly: !filters.favoritesOnly })}
+          aria-pressed={filters.favoritesOnly}
+          className={`flex min-h-11 min-w-11 items-center justify-center ${
+            filters.favoritesOnly ? 'text-ink' : 'text-muted'
+          }`}
+          aria-label={filters.favoritesOnly ? 'Show everything again' : 'Show only favorites'}
+        >
+          <HeartIcon filled={filters.favoritesOnly} className="h-5 w-5" />
+        </button>
         <button
           type="button"
           onClick={() => setFiltersOpen(!filtersOpen)}
@@ -120,24 +174,28 @@ export default function Wardrobe() {
         </>
       )}
 
-      <div className="flex items-center justify-between border-b border-rule pb-2">
+      <div className="flex flex-col gap-1 border-b border-rule pb-2">
         <p className="text-[11px] tracking-[0.06em] text-muted uppercase">
           {visible?.length ?? 0} item{visible?.length === 1 ? '' : 's'}
         </p>
-        <div className="flex gap-1.5">
-          {SORT_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setSortKey(option.value)}
-              aria-pressed={sortKey === option.value}
-              className={`min-h-8 px-2 text-[11px] tracking-[0.04em] uppercase ${
-                sortKey === option.value ? 'text-ink' : 'text-muted'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
+        <div className="-mx-1 flex gap-1 overflow-x-auto px-1">
+          {SORT_OPTIONS.map((option) => {
+            const active = sortKey === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => chooseSort(option.value)}
+                aria-pressed={active}
+                title={active ? 'Tap again to reverse' : undefined}
+                className={`min-h-8 shrink-0 px-2 text-[11px] tracking-[0.04em] whitespace-nowrap uppercase ${
+                  active ? 'text-ink underline underline-offset-4' : 'text-muted'
+                }`}
+              >
+                {active && sortReversed ? option.reversedLabel : option.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -150,7 +208,7 @@ export default function Wardrobe() {
       ) : visible && visible.length === 0 ? (
         <EmptyFilterState filters={filters} groups={groups} onChange={setFilters} />
       ) : (
-        <div className="grid grid-cols-2 gap-px sm:grid-cols-4 lg:grid-cols-6">
+        <div className="grid grid-cols-3 gap-px sm:grid-cols-4 lg:grid-cols-6">
           {visible?.map((item) => (
             <ItemTile
               key={item.id}

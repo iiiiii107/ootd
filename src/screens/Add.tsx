@@ -1,95 +1,125 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+import { CropStep } from '../components/CropStep';
 import { ScreenTitle } from '../components/ScreenTitle';
-import { useCutoutEnabled } from '../db/hooks';
+import { TagChipRow } from '../components/TagChipRow';
+import { useAutoDetectEnabled, useCutoutEnabled, useItem } from '../db/hooks';
 import { createItem, suggestName, updateItem } from '../db/items';
 import type { Category } from '../db/types';
-import { importPhoto } from '../images/pipeline';
+import type { CropRect } from '../images/crop';
+import { analyzePhoto, finishPhoto, type PhotoAnalysis } from '../images/pipeline';
 import { useObjectUrl } from '../lib/useObjectUrl';
+import { useGroups } from '../tags/useGroups';
 
-type Status = 'processing' | 'done' | 'error';
-
-interface QueueEntry {
+interface SavedEntry {
   key: string;
-  file: File;
-  status: Status;
-  category: Category;
-  name: string;
-  /** False until the user edits the auto-generated name by hand. */
-  nameIsCustom: boolean;
-  thumb?: Blob;
   itemId?: string;
   error?: string;
+}
+
+interface CropTask {
+  analysis: PhotoAnalysis;
+  index: number;
+  total: number;
 }
 
 const CATEGORIES: Category[] = ['top', 'bottom', 'other', 'outfit'];
 
 /**
- * Camera or library picker, multi-select → processing queue → tagging
- * (spec §7.4). Tagging beyond category is never mandatory: every photo saves
- * to the database as soon as it is processed, category and name are the only
- * fields set here, and everything else waits under "needs tagging" (Phase 2).
+ * Camera or library picker, multi-select → per-photo crop → save → tag
+ * (spec §7.4). Every photo goes through the same three beats:
  *
- * Photos are processed strictly one at a time (spec R3) — the queue is a
- * `for` loop over one `await importPhoto(...)` at a time, never `Promise.all`.
+ *   1. analyse — decode, resize, and find the garment if detection is on
+ *   2. crop    — the box arrives around the garment; usually one tap
+ *   3. tag     — the full tag set, right here, while the garment is in hand
+ *
+ * Tagging beyond category is still never mandatory: the item is already saved
+ * by the time its card appears, so walking away mid-tagging loses nothing and
+ * the rest can be finished from the wardrobe later. Doing it here is just far
+ * more likely to actually happen than doing it from a grid a week later.
+ *
+ * Photos are processed strictly one at a time (spec R3) — a `for` loop that
+ * awaits each photo, including the user's crop, before touching the next.
+ * Never `Promise.all`: two full-resolution bitmaps at once is what kills the
+ * tab on an iPhone.
  */
 export default function Add() {
-  const [queue, setQueue] = useState<QueueEntry[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
-  // The switch itself lives in Settings (spec §7.5); reading it live here
-  // means a change there takes effect immediately, no remount needed.
+  const [saved, setSaved] = useState<SavedEntry[]>([]);
+  const [status, setStatus] = useState<string | null>(null);
+  const [cropTask, setCropTask] = useState<CropTask | null>(null);
+
+  // Both switches live in Settings (spec §7.5); reading them live here means
+  // a change there takes effect on the very next photo, no remount needed.
   const cutoutEnabled = useCutoutEnabled();
+  const detectEnabled = useAutoDetectEnabled();
+
   // Carries the last-chosen category to the next photo, so five tops in a
   // row don't each need re-selecting (spec §7.4's "same tags as previous").
   const lastCategory = useRef<Category>('top');
+  // Bridges the crop step back into the import loop: the loop awaits this,
+  // CropStep's confirm resolves it.
+  const cropResolver = useRef<((crop: CropRect | null) => void) | null>(null);
+  const abandoned = useRef(false);
 
-  function patchEntry(key: string, patch: Partial<QueueEntry>) {
-    setQueue((q) => q.map((e) => (e.key === key ? { ...e, ...patch } : e)));
+  // Leaving the screen mid-import must not strand the loop on a promise that
+  // can never resolve — release it and let the loop bail out.
+  useEffect(() => {
+    abandoned.current = false;
+    return () => {
+      abandoned.current = true;
+      cropResolver.current?.(null);
+    };
+  }, []);
+
+  function awaitCrop(): Promise<CropRect | null> {
+    return new Promise((resolve) => {
+      cropResolver.current = resolve;
+    });
+  }
+
+  function addEntry(entry: SavedEntry) {
+    setSaved((current) => [entry, ...current]);
   }
 
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const entries: QueueEntry[] = Array.from(files).map((file) => ({
-      key: crypto.randomUUID(),
-      file,
-      status: 'processing',
-      category: lastCategory.current,
-      name: '',
-      nameIsCustom: false,
-    }));
-    setQueue((q) => [...entries, ...q]);
-    setIsProcessing(true);
-    for (const entry of entries) {
+    const list = Array.from(files);
+
+    for (let index = 0; index < list.length; index++) {
+      if (abandoned.current) return;
+
+      setStatus(detectEnabled ? 'Looking for the garment…' : 'Reading the photo…');
+      let analysis: PhotoAnalysis;
       try {
-        const { image, thumb, dominantColor, hasCutout } = await importPhoto(entry.file, cutoutEnabled);
-        const item = await createItem({ category: entry.category, image, thumb, dominantColor, hasCutout });
-        patchEntry(entry.key, { status: 'done', thumb, itemId: item.id, name: item.name });
+        analysis = await analyzePhoto(list[index], { detect: detectEnabled, cutout: cutoutEnabled });
       } catch (err) {
-        patchEntry(entry.key, {
-          status: 'error',
+        addEntry({
+          key: crypto.randomUUID(),
           error: err instanceof Error ? err.message : 'Could not read this photo.',
+        });
+        continue;
+      }
+
+      setStatus(null);
+      setCropTask({ analysis, index, total: list.length });
+      const crop = await awaitCrop();
+      setCropTask(null);
+      if (crop == null) return; // screen left mid-import
+
+      setStatus('Saving…');
+      try {
+        const photo = await finishPhoto(analysis, crop);
+        const item = await createItem({ category: lastCategory.current, ...photo });
+        addEntry({ key: item.id, itemId: item.id });
+      } catch (err) {
+        addEntry({
+          key: crypto.randomUUID(),
+          error: err instanceof Error ? err.message : 'Could not save this photo.',
         });
       }
     }
-    setIsProcessing(false);
-  }
 
-  async function changeCategory(entry: QueueEntry, category: Category) {
-    lastCategory.current = category;
-    if (!entry.itemId) {
-      patchEntry(entry.key, { category });
-      return;
-    }
-    // The auto-generated name is category-derived ("Top 14"); re-suggest it
-    // so it stays consistent, but only while the user hasn't typed their own.
-    const name = entry.nameIsCustom ? entry.name : await suggestName(category);
-    await updateItem(entry.itemId, { category, name });
-    patchEntry(entry.key, { category, name });
-  }
-
-  async function changeName(entry: QueueEntry, name: string) {
-    patchEntry(entry.key, { name, nameIsCustom: true });
-    if (entry.itemId) await updateItem(entry.itemId, { name });
+    setStatus(null);
   }
 
   return (
@@ -101,29 +131,47 @@ export default function Add() {
         <PickerButton label="Choose photos" multiple accept="image/*" onFiles={handleFiles} />
       </div>
 
-      {queue.length === 0 ? (
+      {saved.length === 0 ? (
         <p className="text-[13px] leading-relaxed text-muted">
-          Photos save as soon as they&rsquo;re processed. Category is the only required tag —
-          everything else can be finished later from the wardrobe.
-          {cutoutEnabled
-            ? ' Backgrounds are removed automatically (turn this off in Settings) — the first one downloads a one-time model file, so it may take a moment.'
-            : ' Background removal is off — turn it on in Settings.'}
+          You&rsquo;ll crop each photo, then tag it right away — everything saves as you go, and
+          anything you skip can be finished later from the wardrobe.
+          {detectEnabled && ' The crop box starts around the garment automatically.'}
+          {cutoutEnabled && ' Backgrounds are removed automatically.'}
+          {(detectEnabled || cutoutEnabled) &&
+            ' The first photo downloads a one-time model file, so it may take a moment.'}
         </p>
       ) : (
         <ul className="flex flex-col gap-3">
-          {queue.map((entry) => (
-            <QueueCard
-              key={entry.key}
-              entry={entry}
-              onCategoryChange={(category) => void changeCategory(entry, category)}
-              onNameChange={(name) => void changeName(entry, name)}
-            />
-          ))}
+          {saved.map((entry) =>
+            entry.itemId ? (
+              <TagCard
+                key={entry.key}
+                itemId={entry.itemId}
+                onCategoryChosen={(category) => {
+                  lastCategory.current = category;
+                }}
+              />
+            ) : (
+              <li key={entry.key} className="border border-rule p-3 text-[13px] text-accent">
+                {entry.error}
+              </li>
+            ),
+          )}
         </ul>
       )}
 
-      {isProcessing && (
-        <p className="text-[11px] tracking-[0.1em] text-muted uppercase">Processing…</p>
+      {status && <p className="text-[11px] tracking-[0.1em] text-muted uppercase">{status}</p>}
+
+      {cropTask && (
+        <CropStep
+          key={cropTask.index}
+          image={cropTask.analysis.base}
+          initialCrop={cropTask.analysis.suggestedCrop}
+          detected={cropTask.analysis.detected}
+          index={cropTask.index}
+          total={cropTask.total}
+          onConfirm={(crop) => cropResolver.current?.(crop)}
+        />
       )}
     </div>
   );
@@ -153,7 +201,7 @@ function PickerButton({
         className="hidden"
         onChange={(e) => {
           const input = e.currentTarget;
-          onFiles(input.files);
+          void onFiles(input.files);
           input.value = '';
         }}
       />
@@ -161,57 +209,97 @@ function PickerButton({
   );
 }
 
-function QueueCard({
-  entry,
-  onCategoryChange,
-  onNameChange,
+/**
+ * One just-imported item, fully editable in place. Reads the item live from
+ * the database rather than mirroring it in local state, so this card and the
+ * detail sheet are the same data with no chance of drift.
+ *
+ * Category gets its own row instead of coming from `useGroups` because Add is
+ * the one place `outfit` is offerable (spec §7.3) — photographing a whole
+ * look directly. Every other group renders generically, so a custom group
+ * created in Settings shows up here with no code change (spec §15).
+ */
+function TagCard({
+  itemId,
+  onCategoryChosen,
 }: {
-  entry: QueueEntry;
-  onCategoryChange: (category: Category) => void;
-  onNameChange: (name: string) => void;
+  itemId: string;
+  onCategoryChosen: (category: Category) => void;
 }) {
-  const url = useObjectUrl(entry.thumb);
+  const item = useItem(itemId);
+  const groups = useGroups();
+  const url = useObjectUrl(item?.thumb);
+  const [expanded, setExpanded] = useState(true);
+
+  if (!item) return null;
+
+  async function changeCategory(category: Category) {
+    if (!item) return;
+    onCategoryChosen(category);
+    // The auto-generated name is category-derived ("Top 14"); re-suggest it
+    // so it stays consistent, but only while it still looks auto-generated.
+    const patch: { category: Category; name?: string } = { category };
+    if (isSuggestedName(item.name)) patch.name = await suggestName(category);
+    await updateItem(item.id, patch);
+  }
 
   return (
-    <li className="flex gap-3 border border-rule p-3">
-      <div className="h-20 w-20 shrink-0 bg-sunken">
-        {url && <img src={url} alt="" className="h-full w-full object-cover" />}
+    <li className="flex flex-col gap-3 border border-rule p-3">
+      <div className="flex gap-3">
+        <div className="h-20 w-20 shrink-0 bg-paper">
+          {url && <img src={url} alt="" className="h-full w-full object-cover" />}
+        </div>
+
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
+          <input
+            type="text"
+            value={item.name}
+            onChange={(e) => void updateItem(item.id, { name: e.target.value })}
+            className="min-h-11 border-b border-rule bg-transparent text-[15px] text-ink outline-none focus:border-ink"
+          />
+          <div className="flex flex-wrap gap-1.5">
+            {CATEGORIES.map((category) => (
+              <button
+                key={category}
+                type="button"
+                onClick={() => void changeCategory(category)}
+                aria-pressed={item.category === category}
+                className={`min-h-8 border px-2.5 text-[11px] tracking-[0.06em] uppercase ${
+                  item.category === category ? 'border-ink text-ink' : 'border-rule text-muted'
+                }`}
+              >
+                {category}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col gap-2">
-        {entry.status === 'processing' && (
-          <p className="text-[13px] text-muted">Processing…</p>
-        )}
-        {entry.status === 'error' && (
-          <p className="text-[13px] text-accent">{entry.error}</p>
-        )}
-        {entry.status === 'done' && (
-          <>
-            <input
-              type="text"
-              value={entry.name}
-              onChange={(e) => onNameChange(e.target.value)}
-              className="min-h-11 border-b border-rule bg-transparent text-[15px] text-ink outline-none focus:border-ink"
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
+        className="min-h-9 w-fit text-[11px] tracking-[0.08em] text-muted uppercase"
+      >
+        {expanded ? 'hide tags' : 'add tags'}
+      </button>
+
+      {expanded &&
+        groups
+          .filter((group) => group.id !== 'category')
+          .map((group) => (
+            <TagChipRow
+              key={group.id}
+              group={group}
+              selected={group.getValues(item)}
+              onToggle={(value) => void updateItem(item.id, group.toggle(item, value))}
             />
-            <div className="flex flex-wrap gap-1.5">
-              {CATEGORIES.map((category) => (
-                <button
-                  key={category}
-                  type="button"
-                  onClick={() => onCategoryChange(category)}
-                  className={`min-h-8 border px-2.5 text-[11px] tracking-[0.06em] uppercase ${
-                    entry.category === category
-                      ? 'border-ink text-ink'
-                      : 'border-rule text-muted'
-                  }`}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+          ))}
     </li>
   );
+}
+
+/** Matches the `Top 14` shape `suggestName` produces — anything else is the user's own wording. */
+function isSuggestedName(name: string): boolean {
+  return /^(Top|Bottom|Other|Outfit) \d+$/.test(name);
 }

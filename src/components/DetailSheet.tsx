@@ -1,7 +1,15 @@
 import { useState } from 'react';
 
 import { useItem } from '../db/hooks';
-import { archiveItem, outfitsReferencing, toggleFavorite, toggleWash, trashItem, updateItem } from '../db/items';
+import {
+  archiveItem,
+  markWornToday,
+  outfitsReferencing,
+  toggleFavorite,
+  toggleWash,
+  trashItem,
+  updateItem,
+} from '../db/items';
 import { useObjectUrl } from '../lib/useObjectUrl';
 import { useGroups } from '../tags/useGroups';
 import { TagChipRow } from './TagChipRow';
@@ -9,6 +17,16 @@ import { TagChipRow } from './TagChipRow';
 function formatLastWorn(lastWornAt: number | null): string {
   if (lastWornAt == null) return 'never';
   return new Date(lastWornAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/**
+ * Same calendar day, not "within 24 hours" — the button is answering "have I
+ * already logged this today", and an outfit worn yesterday evening should
+ * still read as un-logged this morning.
+ */
+function wornToday(lastWornAt: number | null): boolean {
+  if (lastWornAt == null) return false;
+  return new Date(lastWornAt).toDateString() === new Date().toDateString();
 }
 
 /**
@@ -59,7 +77,7 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
       </div>
 
       <div className="flex flex-col gap-5 px-5 py-5 pb-10">
-        <div className="max-h-[50vh] bg-sunken">
+        <div className="max-h-[50vh] bg-paper">
           {imageUrl && <img src={imageUrl} alt={item.name} className="mx-auto max-h-[50vh] object-contain" />}
         </div>
 
@@ -124,9 +142,19 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
           />
         </div>
 
-        <p className="text-[12px] text-muted">
-          worn {item.wearCount}× · last {formatLastWorn(item.lastWornAt)}
-        </p>
+        <div className="flex flex-col gap-2 border-t border-rule pt-5">
+          <button
+            type="button"
+            onClick={() => void markWornToday([item.id, ...item.memberIds])}
+            className="min-h-11 border border-ink text-[13px] tracking-wide text-ink"
+          >
+            {wornToday(item.lastWornAt) ? 'Worn today ✓' : 'I wore this'}
+          </button>
+          <p className="text-[12px] text-muted">
+            worn {item.wearCount}× · last {formatLastWorn(item.lastWornAt)}
+            {item.memberIds.length > 0 && ' · counts for every piece in it'}
+          </p>
+        </div>
 
         <div className="flex gap-3 border-t border-rule pt-5">
           <button
@@ -164,7 +192,7 @@ function MemberThumb({ id, onTap }: { id: string; onTap: () => void }) {
 
   return (
     <button type="button" onClick={onTap} className="flex w-20 shrink-0 flex-col gap-1 text-left">
-      <div className="aspect-square bg-sunken">
+      <div className="aspect-square bg-paper">
         {url && <img src={url} alt={member.name} className="h-full w-full object-cover" />}
       </div>
       <p className="truncate text-[11px] text-muted">{member.name}</p>
