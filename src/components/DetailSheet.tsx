@@ -10,7 +10,8 @@ import {
   trashItem,
   updateItem,
 } from '../db/items';
-import { useObjectUrl } from '../lib/useObjectUrl';
+import { useItemImageUrl } from '../lib/useObjectUrl';
+import { useDebouncedText } from '../lib/useDebouncedText';
 import { useGroups } from '../tags/useGroups';
 import { TagChipRow } from './TagChipRow';
 
@@ -42,8 +43,20 @@ function wornToday(lastWornAt: number | null): boolean {
 export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () => void }) {
   const item = useItem(itemId);
   const groups = useGroups();
-  const imageUrl = useObjectUrl(item?.image);
+  const imageUrl = useItemImageUrl(itemId, item?.image);
   const [viewingMemberId, setViewingMemberId] = useState<string | null>(null);
+
+  // Text fields write on a pause rather than per keystroke — see
+  // src/lib/useDebouncedText.ts for why that matters this much here.
+  const [name, setName] = useDebouncedText(item?.name ?? '', (value) =>
+    void updateItem(itemId, { name: value }),
+  );
+  const [notes, setNotes] = useDebouncedText(item?.notes ?? '', (value) =>
+    void updateItem(itemId, { notes: value }),
+  );
+  const [elsewhereNote, setElsewhereNote] = useDebouncedText(item?.elsewhereNote ?? '', (value) =>
+    void updateItem(itemId, { elsewhereNote: value }),
+  );
 
   if (!item) return null;
 
@@ -83,8 +96,8 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
 
         <input
           type="text"
-          value={item.name}
-          onChange={(e) => void updateItem(item.id, { name: e.target.value })}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           className="min-h-11 border-b border-rule bg-transparent text-[20px] text-ink outline-none focus:border-ink"
         />
 
@@ -124,8 +137,8 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
             <p className="text-[11px] tracking-[0.08em] text-muted uppercase">Where</p>
             <input
               type="text"
-              value={item.elsewhereNote}
-              onChange={(e) => void updateItem(item.id, { elsewhereNote: e.target.value })}
+              value={elsewhereNote}
+              onChange={(e) => setElsewhereNote(e.target.value)}
               placeholder="e.g. at my parents'"
               className="min-h-11 border-b border-rule bg-transparent text-[14px] text-ink outline-none placeholder:text-muted focus:border-ink"
             />
@@ -135,8 +148,8 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
         <div className="flex flex-col gap-1.5">
           <p className="text-[11px] tracking-[0.08em] text-muted uppercase">Notes</p>
           <textarea
-            value={item.notes}
-            onChange={(e) => void updateItem(item.id, { notes: e.target.value })}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
             rows={3}
             className="border border-rule bg-transparent p-2 text-[14px] text-ink outline-none focus:border-ink"
           />
@@ -184,7 +197,7 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
 /** One "made from" thumbnail. A member can be trashed independently of the outfit that used it, hence the guard. */
 function MemberThumb({ id, onTap }: { id: string; onTap: () => void }) {
   const member = useItem(id);
-  const url = useObjectUrl(member?.thumb);
+  const url = useItemImageUrl(id, member?.thumb);
 
   if (!member) {
     return <p className="shrink-0 self-center text-[11px] text-muted italic">removed piece</p>;

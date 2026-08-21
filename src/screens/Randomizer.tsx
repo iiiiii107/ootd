@@ -9,7 +9,7 @@ import { getMeta, setMeta } from '../db/meta';
 import type { Formality, Item, Location, Season, Vibe } from '../db/types';
 import { composeOutfitThumb } from '../images/composite';
 import { toggleInArray } from '../lib/toggleInArray';
-import { useObjectUrl } from '../lib/useObjectUrl';
+import { useItemImageUrl } from '../lib/useObjectUrl';
 import {
   DEFAULT_RANDOMIZER_FILTERS,
   currentSeason,
@@ -253,7 +253,7 @@ function ResultCard({
   onToggleLock: () => void;
   lockable?: boolean;
 }) {
-  const url = useObjectUrl(item.thumb);
+  const url = useItemImageUrl(item.id, item.thumb);
   return (
     <div className="relative border border-rule">
       <div className="aspect-square bg-paper">

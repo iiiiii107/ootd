@@ -209,8 +209,17 @@ Camera or library picker, **multi-select** (dump 20 photos at once) → per-phot
 Each photo goes through three beats, one photo at a time:
 
 1. **Analyse** — decode, resize, and find the garment if automatic detection is on.
-2. **Crop** — before saving, never after, so the stored photo is already the one you meant and no uncropped original sits around eating storage. **Automatic clothes detection** pre-draws the box around the garment, making this usually a single tap; the box is freely draggable and "use whole photo" is always one tap away. The padding errs generous: a loose box costs one drag, a box that clips a sleeve has to be noticed first.
+2. **Crop** — before saving, never after, so the stored photo is already the one you meant and no uncropped original sits around eating storage. **Automatic clothes detection** pre-draws the box around the garment, making this usually a single tap; the box is freely draggable and "use whole photo" is always one tap away. The padding errs generous: a loose box costs one drag, a box that clips a sleeve has to be noticed first. **Discard** drops the photo here, so a wrong shot is never written at all *(added in Phase 7 — before it, the only way out was to let it save and then delete it, which also burned a name and a number)*.
 3. **Tag** — the full tag set, inline, while the garment is still in hand.
+
+**Everything runs in a worker, and one photo is analysed ahead** *(Phase 7)*. Segmentation is ~9s a photo and no backend changes that — WebGPU measured within a second of the CPU path, so the fix is never to make you wait on it. Two consequences, both load-bearing:
+
+- **Off the main thread**, so the app stays responsive mid-import. On the main thread a 20-photo batch left the page half-painted.
+- **Lookahead of one**: photo N+1 is analysed while you crop photo N, spending the model's time against time you were using anyway. Measured: first photo ~10s, every photo after it ~1s.
+
+There is deliberately **no main-thread fallback**. One existed and was removed — the worker is its own bundle graph, so a fallback copy meant the HEIC decoder and inference runtime were bundled twice, taking the day-one precache from 4.4MB to 8.2MB for a path that can't realistically run (the app already needs `OffscreenCanvas.convertToBlob`, which no browser shipped before module workers).
+
+Nothing on this screen needs an explicit save — items are written the moment a crop is confirmed, and tags the moment a chip is tapped. There is still a **Done** button, because "it saved while you weren't looking" is otherwise something you have to take on faith; it names what already happened rather than pretending to be the thing that does it.
 
 **Detection is the same single inference pass as background removal** — the segmentation model's alpha mask *is* the garment outline, so its bounding box comes free. The two are separately switchable in Settings but having both on costs no more than either alone. Bounds come from the alpha *mass* per row and column, discarding the outermost 1% on each axis: segmentation leaves a faint haze across the frame, and a plain min/max scan over "any pixel above the threshold" latches onto that haze and reports the whole frame.
 

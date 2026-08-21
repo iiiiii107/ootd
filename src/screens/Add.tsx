@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router';
 
 import { CropStep } from '../components/CropStep';
 import { ScreenTitle } from '../components/ScreenTitle';
@@ -7,8 +8,10 @@ import { useAutoDetectEnabled, useCutoutEnabled, useItem } from '../db/hooks';
 import { createItem, suggestName, updateItem } from '../db/items';
 import type { Category } from '../db/types';
 import type { CropRect } from '../images/crop';
-import { analyzePhoto, finishPhoto, type PhotoAnalysis } from '../images/pipeline';
-import { useObjectUrl } from '../lib/useObjectUrl';
+import type { PhotoAnalysis } from '../images/pipeline';
+import { analyzePhotoAsync, finishPhotoAsync } from '../images/pipelineClient';
+import { useDebouncedText } from '../lib/useDebouncedText';
+import { useItemImageUrl } from '../lib/useObjectUrl';
 import { useGroups } from '../tags/useGroups';
 
 interface SavedEntry {
@@ -22,6 +25,9 @@ interface CropTask {
   index: number;
   total: number;
 }
+
+/** What the crop step hands back: a rectangle to keep, a photo to drop, or a screen that went away. */
+type CropDecision = CropRect | 'discard' | 'abandoned';
 
 const CATEGORIES: Category[] = ['top', 'bottom', 'other', 'outfit'];
 
@@ -47,6 +53,8 @@ export default function Add() {
   const [saved, setSaved] = useState<SavedEntry[]>([]);
   const [status, setStatus] = useState<string | null>(null);
   const [cropTask, setCropTask] = useState<CropTask | null>(null);
+  const navigate = useNavigate();
+  const savedCount = saved.filter((entry) => entry.itemId).length;
 
   // Both switches live in Settings (spec §7.5); reading them live here means
   // a change there takes effect on the very next photo, no remount needed.
@@ -58,7 +66,7 @@ export default function Add() {
   const lastCategory = useRef<Category>('top');
   // Bridges the crop step back into the import loop: the loop awaits this,
   // CropStep's confirm resolves it.
-  const cropResolver = useRef<((crop: CropRect | null) => void) | null>(null);
+  const cropResolver = useRef<((decision: CropDecision) => void) | null>(null);
   const abandoned = useRef(false);
 
   // Leaving the screen mid-import must not strand the loop on a promise that
@@ -67,11 +75,11 @@ export default function Add() {
     abandoned.current = false;
     return () => {
       abandoned.current = true;
-      cropResolver.current?.(null);
+      cropResolver.current?.('abandoned');
     };
   }, []);
 
-  function awaitCrop(): Promise<CropRect | null> {
+  function awaitCrop(): Promise<CropDecision> {
     return new Promise((resolve) => {
       cropResolver.current = resolve;
     });
@@ -84,14 +92,35 @@ export default function Add() {
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     const list = Array.from(files);
+    const options = { detect: detectEnabled, cutout: cutoutEnabled };
+
+    /**
+     * Start a photo's analysis without waiting for it. The stray `.catch`
+     * keeps a rejection from going unhandled if the import is abandoned
+     * before anyone awaits this promise; the original still rejects for
+     * whoever does await it.
+     */
+    const start = (file: Blob) => {
+      const work = analyzePhotoAsync(file, options);
+      work.catch(() => {});
+      return work;
+    };
+
+    // The lookahead: photo N+1 is analysed while you crop photo N. Analysis
+    // is ~9s of model inference no matter what hardware runs it, so the only
+    // real fix is to spend it against time you were using anyway.
+    let upcoming = start(list[0]);
 
     for (let index = 0; index < list.length; index++) {
       if (abandoned.current) return;
 
+      const current = upcoming;
+      upcoming = index + 1 < list.length ? start(list[index + 1]) : upcoming;
+
       setStatus(detectEnabled ? 'Looking for the garment…' : 'Reading the photo…');
       let analysis: PhotoAnalysis;
       try {
-        analysis = await analyzePhoto(list[index], { detect: detectEnabled, cutout: cutoutEnabled });
+        analysis = await current;
       } catch (err) {
         addEntry({
           key: crypto.randomUUID(),
@@ -102,13 +131,14 @@ export default function Add() {
 
       setStatus(null);
       setCropTask({ analysis, index, total: list.length });
-      const crop = await awaitCrop();
+      const decision = await awaitCrop();
       setCropTask(null);
-      if (crop == null) return; // screen left mid-import
+      if (decision === 'abandoned') return; // screen left mid-import
+      if (decision === 'discard') continue; // wrong photo — never saved at all
 
       setStatus('Saving…');
       try {
-        const photo = await finishPhoto(analysis, crop);
+        const photo = await finishPhotoAsync(analysis, decision);
         const item = await createItem({ category: lastCategory.current, ...photo });
         addEntry({ key: item.id, itemId: item.id });
       } catch (err) {
@@ -162,6 +192,31 @@ export default function Add() {
 
       {status && <p className="text-[11px] tracking-[0.1em] text-muted uppercase">{status}</p>}
 
+      {/*
+        Everything on this screen is already in the database — tags included,
+        the moment you tap a chip. But "it saved while you weren't looking"
+        is a promise you have to take on faith, so there's a real button to
+        end the session on, and it says what already happened rather than
+        pretending to be the thing that does it.
+      */}
+      {saved.length > 0 && !cropTask && !status && (
+        <div className="flex flex-col gap-1.5 border-t border-rule pt-4">
+          <button
+            type="button"
+            onClick={() => {
+              setSaved([]);
+              void navigate('/wardrobe');
+            }}
+            className="min-h-12 border border-ink bg-ink text-[14px] tracking-wide text-paper"
+          >
+            Done · {savedCount} added
+          </button>
+          <p className="text-center text-[12px] text-muted">
+            Already saved, tags and all. This just takes you to the wardrobe.
+          </p>
+        </div>
+      )}
+
       {cropTask && (
         <CropStep
           key={cropTask.index}
@@ -171,6 +226,7 @@ export default function Add() {
           index={cropTask.index}
           total={cropTask.total}
           onConfirm={(crop) => cropResolver.current?.(crop)}
+          onDiscard={() => cropResolver.current?.('discard')}
         />
       )}
     </div>
@@ -228,8 +284,11 @@ function TagCard({
 }) {
   const item = useItem(itemId);
   const groups = useGroups();
-  const url = useObjectUrl(item?.thumb);
+  const url = useItemImageUrl(itemId, item?.thumb);
   const [expanded, setExpanded] = useState(true);
+  const [name, setName] = useDebouncedText(item?.name ?? '', (value) =>
+    void updateItem(itemId, { name: value }),
+  );
 
   if (!item) return null;
 
@@ -253,8 +312,8 @@ function TagCard({
         <div className="flex min-w-0 flex-1 flex-col gap-2">
           <input
             type="text"
-            value={item.name}
-            onChange={(e) => void updateItem(item.id, { name: e.target.value })}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
             className="min-h-11 border-b border-rule bg-transparent text-[15px] text-ink outline-none focus:border-ink"
           />
           <div className="flex flex-wrap gap-1.5">

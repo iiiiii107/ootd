@@ -33,6 +33,7 @@ export function CropStep({
   index,
   total,
   onConfirm,
+  onDiscard,
 }: {
   image: Blob;
   initialCrop: CropRect;
@@ -40,6 +41,7 @@ export function CropStep({
   index: number;
   total: number;
   onConfirm: (crop: CropRect) => void;
+  onDiscard: () => void;
 }) {
   const url = useObjectUrl(image);
   const [rect, setRect] = useState<CropRect>(initialCrop);
@@ -134,13 +136,28 @@ export function CropStep({
             ? 'Found the garment — drag the corners if it missed anything.'
             : 'Drag the corners to crop.'}
         </p>
-        <button
-          type="button"
-          onClick={() => onConfirm(rect)}
-          className="min-h-12 border border-ink bg-ink text-[14px] tracking-wide text-paper"
-        >
-          {index + 1 < total ? 'Next photo' : 'Save'}
-        </button>
+        <div className="flex gap-2">
+          {/*
+            Discarding here means the photo is never written at all. Before
+            this, the only way out of a wrong photo was to let it save and
+            then delete it from the wardrobe — which also burned a name and
+            a slot in the numbering.
+          */}
+          <button
+            type="button"
+            onClick={onDiscard}
+            className="min-h-12 flex-1 border border-rule text-[14px] tracking-wide text-accent"
+          >
+            Discard
+          </button>
+          <button
+            type="button"
+            onClick={() => onConfirm(rect)}
+            className="min-h-12 flex-[2] border border-ink bg-ink text-[14px] tracking-wide text-paper"
+          >
+            {index + 1 < total ? 'Next photo' : 'Save'}
+          </button>
+        </div>
       </div>
     </div>
   );

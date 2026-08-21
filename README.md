@@ -25,7 +25,15 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 - **One shared sort control** for Wardrobe and Outfits. They were near-identical copies and only one of them grew the reverse behaviour — the same copy-paste drift that once knocked the screen titles out of alignment.
 - **Cutout masks are hardened before storage.** Flattening onto white used to hide the model's low-alpha haze; transparency doesn't, and against the dark ground it read as white speckle.
 
-The rest of the design pass — type scale and spacing judged against real garments, and calibrating the mask and detection thresholds — still waits on a real batch of photos. Everything so far has run on synthetic test swatches, which are pathological input for a salient-object model. Phase 7's real-device testing is also still open.
+**Phase 7 — first real-device run.** Install, storage, airplane mode, backup, randomizer and reach all passed on an iPhone. Storage came back at 39GB free, so the ~250KB-an-item budget is nowhere near binding. Three things came back needing work, and all three are fixed:
+
+- **Import was ~7s a photo and left the page half-painted.** Measured rather than guessed: segmentation is ~9s and the backend is irrelevant (WebGPU came within a second of the CPU path), and it was running on the main thread. The pipeline now runs in a worker, and photo N+1 is analysed while you crop photo N. First photo ~10s, every one after it ~1s.
+- **Editing anything made the photos lag.** Dexie's live queries return freshly-read records on every write, so one keystroke handed every tile on screen a new `Blob` and made the browser re-decode the whole grid. Image URLs are now keyed by item, and text fields write on a pause instead of per keystroke. Measured after: an edit re-decodes nothing.
+- **Cutouts had specks of background left in them.** Islands unconnected to the garment are now dropped — with a threshold set low enough that a genuinely separate piece like a waistband survives, since silently deleting real clothing is much worse than leaving a speck.
+
+Also from that run: **Discard** in the crop step, so a wrong photo is never saved in the first place, and a **Done** button to end an import session on.
+
+Still open: the last of the design pass — type scale and spacing judged against real garments, and calibrating the mask and detection thresholds now that there are real photos to calibrate against.
 
 | Phase | What it adds | State |
 | --- | --- | --- |
@@ -37,7 +45,7 @@ The rest of the design pass — type scale and spacing judged against real garme
 | 5 | Background removal, design pass | background removal done; design pass done except what needs real photos |
 | 6 | Custom tags, export/import backup | done |
 | 6.5 | Crop + detection, tag on import, transparent cutouts, wardrobe controls | done |
-| 7 | Real-device testing | next |
+| 7 | Real-device testing | first run done; findings fixed |
 
 ## Running it
 
@@ -63,11 +71,11 @@ The phone needs a real HTTPS URL — home-screen install and service workers do 
 2. On [netlify.com](https://netlify.com), sign in **with GitHub** and pick the repo. `netlify.toml` already sets the build command, the publish directory, and the SPA redirect, so the defaults are correct.
 3. Every push now deploys automatically to something like `ootd-isi.netlify.app`.
 
-Then, on the iPhone: open the URL in Chrome → Share icon → **Add to Home Screen** → name it `ootd` → open the new icon.
+Then, on the iPhone: open the URL in **Safari** → Share icon → **Add to Home Screen** → name it `ootd` → open the new icon. (Chrome on iOS can install too, but Safari is the path with no surprises — and either way the installed app runs on WebKit.)
 
 ### Use the icon, not the tab
 
-On iOS an installed home-screen app gets **its own private storage bucket**, separate from the Chrome tab it was installed from. Items added in a tab will not appear in the installed app — it is effectively a second, empty copy. iOS sandboxes web apps this way and it cannot be worked around.
+On iOS an installed home-screen app gets **its own private storage bucket**, separate from the browser tab it was installed from. Items added in a tab will not appear in the installed app — it is effectively a second, empty copy. iOS sandboxes web apps this way and it cannot be worked around.
 
 The app detects this and shows a banner when it is running in an iOS tab. Once installed, add clothes only from the icon.
 
@@ -84,14 +92,18 @@ The generated PNGs are committed, so a build or a deploy never runs the generato
 ```
 scripts/      icon source + generator
 src/
-  design/     tokens, typography
-  lib/        install-mode detection
-  components/ InstallBanner
-  App.tsx     Phase 0 screen
+  design/     tokens (colour, type) — the whole visual system
+  db/         Dexie, schema, queries. The ONLY place that touches the database
+  images/     decode → crop → segment → encode, plus the worker it all runs in
+  logic/      pickOutfit.ts — the one piece of real algorithm, pure and tested
+  tags/       the generic tag-group system built-ins and custom groups share
+  components/ shared UI
+  screens/    the five screens: randomizer, wardrobe, outfits, add, settings
+  lib/        install-mode detection, object URLs, debounced text
 ```
 
-Later phases add `src/db/` (Dexie, kept behind a repository module so a sync backend is a swap, not a rewrite), `src/images/`, `src/logic/pickOutfit.ts`, and `src/screens/`.
+`src/db/` is kept behind a repository module so a sync backend later is a swap, not a rewrite. Nothing outside it imports the Dexie instance.
 
 ## Backup
 
-Local-only data can be lost — deleting the app, wiping the phone, or storage eviction takes the wardrobe with it. Export/import lands in Phase 6, and once it exists it is worth actually using.
+Local-only data can be lost — deleting the app, wiping the phone, or storage eviction takes the wardrobe with it. Export/import landed in Phase 6 and has been round-tripped through a full wipe — items, photos and custom tags all come back byte-identical. Use it.

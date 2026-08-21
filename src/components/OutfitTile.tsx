@@ -1,5 +1,5 @@
 import type { Item } from '../db/types';
-import { useObjectUrl } from '../lib/useObjectUrl';
+import { useItemImageUrl } from '../lib/useObjectUrl';
 
 /**
  * A larger card than the Wardrobe grid's plain ItemTile (spec §7.3) — a
@@ -7,7 +7,7 @@ import { useObjectUrl } from '../lib/useObjectUrl';
  * apart at a glance, which a single garment's thumb doesn't need.
  */
 export function OutfitTile({ item, onTap }: { item: Item; onTap: () => void }) {
-  const url = useObjectUrl(item.thumb);
+  const url = useItemImageUrl(item.id, item.thumb);
 
   return (
     <button type="button" onClick={onTap} className="flex flex-col border border-rule text-left">

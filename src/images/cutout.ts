@@ -46,6 +46,13 @@ async function runModel(source: Blob): Promise<Blob> {
   // `removeBackground` (as opposed to the library's `removeForeground`)
   // already keeps the foreground/subject — no separate "type" option in
   // this version of the config.
+  //
+  // Measured on a fast machine: ~9.9s on the CPU backend and ~9.1s on WebGPU
+  // — near enough identical, and the GPU path still pinned the main thread.
+  // Since neither backend is fast enough to wait on, the fix isn't the
+  // backend, it's that this whole module runs inside a worker
+  // (src/images/pipeline.worker.ts) and one photo is analysed ahead of the
+  // one being cropped. Left on the CPU backend: same speed, less surface.
   return imglyRemoveBackground(source, {
     model: 'isnet_quint8',
     output: { format: 'image/png' },
@@ -95,14 +102,29 @@ export async function cleanMask(cutout: Blob): Promise<Blob> {
     if (!ctx) return cutout;
     ctx.drawImage(bitmap, 0, 0);
 
-    const image = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+    const width = bitmap.width;
+    const height = bitmap.height;
+    const image = ctx.getImageData(0, 0, width, height);
     const data = image.data;
     const range = ALPHA_CEIL - ALPHA_FLOOR;
-    for (let i = 3; i < data.length; i += 4) {
-      const alpha = data[i];
-      if (alpha <= ALPHA_FLOOR) data[i] = 0;
-      else if (alpha >= ALPHA_CEIL) data[i] = 255;
-      else data[i] = Math.round(((alpha - ALPHA_FLOOR) / range) * 255);
+
+    const keep = solidRegions(data, width, height);
+    const scanWidth = keep.width;
+
+    for (let y = 0; y < height; y++) {
+      const scanY = Math.min(keep.height - 1, Math.floor((y * keep.height) / height));
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4 + 3;
+        const scanX = Math.min(scanWidth - 1, Math.floor((x * scanWidth) / width));
+        if (!keep.data[scanY * scanWidth + scanX]) {
+          data[i] = 0; // an island out in the background, not the garment
+          continue;
+        }
+        const alpha = data[i];
+        if (alpha <= ALPHA_FLOOR) data[i] = 0;
+        else if (alpha >= ALPHA_CEIL) data[i] = 255;
+        else data[i] = Math.round(((alpha - ALPHA_FLOOR) / range) * 255);
+      }
     }
     ctx.putImageData(image, 0, 0);
 
@@ -110,6 +132,93 @@ export async function cleanMask(cutout: Blob): Promise<Blob> {
   } finally {
     bitmap.close();
   }
+}
+
+/** Coarse grid the island-removal pass works on — exact edges come from the alpha ramp, not from here. */
+const REGION_SCAN_EDGE = 256;
+/**
+ * A region smaller than this share of the biggest one is background litter.
+ *
+ * Not "keep only the largest": a garment legitimately arrives in pieces — a
+ * strappy top, a belt read separately from a dress, a two-piece laid out
+ * together — and throwing all but one away would quietly delete real
+ * clothing, which is a far worse failure than leaving a speck behind.
+ *
+ * 2% rather than something stricter, because the gap between the two cases is
+ * enormous and there's no reason to run close to the edge of it: measured
+ * against a test mask, background specks came in around 0.2% of the garment
+ * while a separate waistband piece was 10%. An earlier 15% cutoff deleted
+ * that waistband.
+ */
+const REGION_MIN_SHARE = 0.02;
+
+/**
+ * Marks which parts of the mask belong to a region big enough to be clothing.
+ *
+ * The model reliably leaves a few stray blobs floating in the background, and
+ * those survive an alpha threshold perfectly well because they're opaque —
+ * they're just not the garment. Connectivity is what separates them: they
+ * don't touch the main mass.
+ *
+ * Labelled on a coarse grid with an explicit stack rather than recursion; a
+ * flood fill over a megapixel image recurses deep enough to blow the stack.
+ */
+function solidRegions(
+  data: Uint8ClampedArray,
+  width: number,
+  height: number,
+): { data: Uint8Array; width: number; height: number } {
+  const scale = Math.min(1, REGION_SCAN_EDGE / Math.max(width, height));
+  const w = Math.max(1, Math.round(width * scale));
+  const h = Math.max(1, Math.round(height * scale));
+
+  const solid = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) {
+    const sourceY = Math.min(height - 1, Math.floor((y * height) / h));
+    for (let x = 0; x < w; x++) {
+      const sourceX = Math.min(width - 1, Math.floor((x * width) / w));
+      solid[y * w + x] = data[(sourceY * width + sourceX) * 4 + 3] > ALPHA_FLOOR ? 1 : 0;
+    }
+  }
+
+  const label = new Int32Array(w * h).fill(-1);
+  const sizes: number[] = [];
+  const stack: number[] = [];
+
+  for (let start = 0; start < solid.length; start++) {
+    if (!solid[start] || label[start] !== -1) continue;
+    const id = sizes.length;
+    let size = 0;
+    stack.push(start);
+    label[start] = id;
+
+    while (stack.length > 0) {
+      const cell = stack.pop() as number;
+      size++;
+      const x = cell % w;
+      const y = (cell / w) | 0;
+      if (x > 0) push(cell - 1);
+      if (x < w - 1) push(cell + 1);
+      if (y > 0) push(cell - w);
+      if (y < h - 1) push(cell + w);
+    }
+    sizes.push(size);
+
+    function push(next: number) {
+      if (solid[next] && label[next] === -1) {
+        label[next] = id;
+        stack.push(next);
+      }
+    }
+  }
+
+  const largest = sizes.length > 0 ? Math.max(...sizes) : 0;
+  const threshold = largest * REGION_MIN_SHARE;
+  const keep = new Uint8Array(w * h);
+  for (let i = 0; i < keep.length; i++) {
+    keep[i] = label[i] >= 0 && sizes[label[i]] >= threshold ? 1 : 0;
+  }
+  return { data: keep, width: w, height: h };
 }
 
 /**

@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 
 import type { Item } from '../db/types';
-import { useObjectUrl } from '../lib/useObjectUrl';
+import { useItemImageUrl } from '../lib/useObjectUrl';
 
 const LONG_PRESS_MS = 500;
 
@@ -27,7 +27,7 @@ export function ItemTile({
   onToggleSelect: () => void;
   onLongPress: () => void;
 }) {
-  const url = useObjectUrl(item.thumb);
+  const url = useItemImageUrl(item.id, item.thumb);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firedLongPress = useRef(false);
 
