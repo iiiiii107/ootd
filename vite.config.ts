@@ -11,7 +11,17 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/apple-touch-icon.png', 'icons/favicon-32.png', 'icons/icon.svg'],
+      // No `includeAssets` here: that option exists to pull in files the build
+      // doesn't emit, but everything in `public/` is copied into the output
+      // that `globPatterns` below already sweeps. Listing them twice put every
+      // icon in the precache manifest twice, with identical revisions.
+      //
+      // The four icons named in `manifest.icons` are still listed twice — the
+      // plugin precaches those itself on top of the glob. Silencing that would
+      // mean a `globIgnores` list duplicating the manifest icon names, which
+      // then drifts silently the first time an icon is added or renamed. Four
+      // repeated entries pointing at an identical revision cost nothing (the
+      // Cache API is keyed by URL) and are the better trade.
       manifest: {
         name: 'ootd',
         short_name: 'ootd',
