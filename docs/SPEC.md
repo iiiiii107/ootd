@@ -222,6 +222,10 @@ Manage tag groups · **Export backup** · **Import backup** · storage used · a
 
 **Laundry reminder** *(added in Phase 6.5)*: once 15 or more items are in the wash, an app-wide message says so — *"So many items in the wash? You really should do your laundry!"* Dismissal is per-session only, like the backup nag: the pile doesn't go away because it was waved off once, and the message stops on its own the moment items come back out.
 
+### 7.6 Standing messages
+
+**At most one shows at a time**, ordered by what happens if it goes unread: **install** (items added in this tab are invisible to the installed app, and iOS wipes tab storage after 7 days) → **backup** (the wardrobe exists in exactly one place) → **laundry** (housekeeping). Three of these stacked is reachable, and pushed the screen title most of the way down the phone. Each is dismissed independently, so waving off the laundry reveals nothing else, but dismissing the install warning does let a real backup warning through.
+
 ---
 
 ## 8. Design
@@ -232,6 +236,8 @@ Minimal but fashionable, meaning: the clothes are the only colour on screen.
 - Typography does the fashion work: **Sniglet** (bold, 800) for the `ootd` wordmark and screen titles — a bubble-letter, Comic-Sans-family display face; **Comic Neue** for all UI, the same cartoon family but legible down to chip and caption sizes. Lowercase wordmark, wide letterspacing. *(Revised from the original editorial-serif direction — the user asked for a black-and-white, cartoon-ish vibe after seeing Phase 0/1 running. Both fonts are self-hosted via `@fontsource`, same offline guarantee as before.)*
 - No drop shadows, no gradients, no rounded-everything. Hairline rules, generous whitespace, images edge-to-edge in the grid.
 - Cutouts make the grid read as a lookbook rather than a camera roll — this is why background removal earns its complexity. **Revised in Phase 6.5:** cutouts keep their transparency instead of being flattened onto flat white, so a garment sits directly on the app's own paper ground wherever it appears. Stored as WebP-with-alpha where the browser can encode it, PNG otherwise — a PNG-only pipeline would blow the ~250KB/item storage budget in §11.
+- **Masks are hardened before storage** (`cleanMask`, a two-point alpha ramp). Flattening onto white hid the model's low-alpha haze; transparency does not, and against the dark-mode ground that haze reads as white speckle around the garment. **The ramp's thresholds are deliberately conservative and are on the list for the photo-dependent design pass** — they were set against synthetic test swatches, which are pathological input for a salient-object model, and want re-tuning against real garment photos before being trusted.
+- The settings gear rides in the screen-title row rather than a row of its own: a 44px band at the top of every screen came straight out of the grid on a phone. Absolute positioning keeps the title optically centred, which a flex row with an icon on one side would not.
 - Motion minimal and fast: shuffle is a quick card cross-fade, not a slot-machine animation. Tasteful over cute.
 - Dark mode: inverted, warm black.
 - 44px minimum tap targets; respect `env(safe-area-inset-*)` so nothing hides under the iPhone home bar.

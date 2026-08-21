@@ -18,7 +18,14 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 - **Randomizer pairing fixed:** an active filter now defines the acceptable set for that dimension, so pressing spring + summer pairs a spring top with a summer bottom instead of quietly demanding both pieces share a season.
 - **Laundry reminder** at 15+ items in the wash, plus the `@Linh` location and a considered order for the location and vibe chips.
 
-Still open: Phase 5's visual design pass, deferred until there are real garment photos to design against (everything so far has run on synthetic test swatches), and Phase 7's real-device testing.
+**Phase 5, photo-independent half** — the parts of the design pass that don't need real garments:
+
+- **One standing message at a time**, ordered install → backup → laundry. All three could stack, which pushed the screen title most of the way down the phone.
+- **The settings gear moved into the title row.** It had a 44px row to itself on every screen; on a phone that came straight out of the grid. The wardrobe grid now starts ~75px higher — about a third of a garment row.
+- **One shared sort control** for Wardrobe and Outfits. They were near-identical copies and only one of them grew the reverse behaviour — the same copy-paste drift that once knocked the screen titles out of alignment.
+- **Cutout masks are hardened before storage.** Flattening onto white used to hide the model's low-alpha haze; transparency doesn't, and against the dark ground it read as white speckle.
+
+The rest of the design pass — type scale and spacing judged against real garments, and calibrating the mask and detection thresholds — still waits on a real batch of photos. Everything so far has run on synthetic test swatches, which are pathological input for a salient-object model. Phase 7's real-device testing is also still open.
 
 | Phase | What it adds | State |
 | --- | --- | --- |
@@ -27,7 +34,7 @@ Still open: Phase 5's visual design pass, deferred until there are real garment 
 | 2 | Search, generic filter bar, detail sheet, bulk edit | done |
 | 3 | Randomizer + `pickOutfit` | done |
 | 4 | Outfits view, composites | done |
-| 5 | Background removal, design pass | background removal done; design pass pending real photos |
+| 5 | Background removal, design pass | background removal done; design pass done except what needs real photos |
 | 6 | Custom tags, export/import backup | done |
 | 6.5 | Crop + detection, tag on import, transparent cutouts, wardrobe controls | done |
 | 7 | Real-device testing | next |

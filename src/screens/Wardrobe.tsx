@@ -6,6 +6,7 @@ import { FilterBar } from '../components/FilterBar';
 import { ItemTile } from '../components/ItemTile';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { SearchBar } from '../components/SearchBar';
+import { SortRow } from '../components/SortRow';
 import { BasketIcon, HeartIcon, SearchIcon } from '../components/icons';
 import { useWardrobeItems } from '../db/hooks';
 import { getMeta, setMeta } from '../db/meta';
@@ -16,18 +17,7 @@ const FILTER_STATE_KEY = 'wardrobeFilterState';
 const SORT_KEY_KEY = 'wardrobeSortKey';
 const SORT_REVERSED_KEY = 'wardrobeSortReversed';
 
-/**
- * Each sort has a real name in both directions rather than an abstract
- * asc/desc arrow — "oldest" and "not worn in ages" are what you actually
- * want to ask for. The reversed name is only shown while that sort is the
- * active one, so the row stays short.
- */
-const SORT_OPTIONS: { value: SortKey; label: string; reversedLabel: string }[] = [
-  { value: 'lastWorn', label: 'last worn', reversedLabel: 'not worn in ages' },
-  { value: 'newest', label: 'newest', reversedLabel: 'oldest' },
-  { value: 'name', label: 'a–z', reversedLabel: 'z–a' },
-  { value: 'category', label: 'category', reversedLabel: 'category ↑' },
-];
+const SORT_OPTIONS: SortKey[] = ['lastWorn', 'newest', 'name', 'category'];
 
 /**
  * Search, generic tag filters, sort, the detail sheet, and bulk multi-select
@@ -85,13 +75,9 @@ export default function Wardrobe() {
     return sortItems(filterItems(items, filters, groups), sortKey, sortReversed);
   }, [items, filters, groups, sortKey, sortReversed]);
 
-  /** Tapping the active sort flips its direction; tapping another switches to it, forwards. */
-  function chooseSort(value: SortKey) {
-    if (value === sortKey) setSortReversed((r) => !r);
-    else {
-      setSortKey(value);
-      setSortReversed(false);
-    }
+  function chooseSort(key: SortKey, reversed: boolean) {
+    setSortKey(key);
+    setSortReversed(reversed);
   }
 
   function toggleSelected(id: string) {
@@ -118,7 +104,7 @@ export default function Wardrobe() {
   }
 
   return (
-    <div className="flex flex-col gap-3 px-4 pb-24">
+    <div className="flex flex-col gap-2 px-4 pb-24">
       <ScreenTitle>wardrobe</ScreenTitle>
 
       {/*
@@ -127,7 +113,7 @@ export default function Wardrobe() {
         the same FilterState the filter bar edits, so pressing one here and
         clearing it down there are the same switch, not two competing ones.
       */}
-      <div className="flex justify-end gap-1">
+      <div className="-mt-1 flex justify-end gap-1">
         <button
           type="button"
           onClick={() => setFilters({ ...filters, washOnly: !filters.washOnly })}
@@ -174,30 +160,14 @@ export default function Wardrobe() {
         </>
       )}
 
-      <div className="flex flex-col gap-1 border-b border-rule pb-2">
-        <p className="text-[11px] tracking-[0.06em] text-muted uppercase">
-          {visible?.length ?? 0} item{visible?.length === 1 ? '' : 's'}
-        </p>
-        <div className="-mx-1 flex gap-1 overflow-x-auto px-1">
-          {SORT_OPTIONS.map((option) => {
-            const active = sortKey === option.value;
-            return (
-              <button
-                key={option.value}
-                type="button"
-                onClick={() => chooseSort(option.value)}
-                aria-pressed={active}
-                title={active ? 'Tap again to reverse' : undefined}
-                className={`min-h-8 shrink-0 px-2 text-[11px] tracking-[0.04em] whitespace-nowrap uppercase ${
-                  active ? 'text-ink underline underline-offset-4' : 'text-muted'
-                }`}
-              >
-                {active && sortReversed ? option.reversedLabel : option.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <SortRow
+        count={visible?.length ?? 0}
+        noun="item"
+        options={SORT_OPTIONS}
+        sortKey={sortKey}
+        reversed={sortReversed}
+        onChange={chooseSort}
+      />
 
       {items.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 py-16 text-center">

@@ -68,6 +68,50 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
+/** Alpha at or below this is haze, not garment — forced fully transparent. */
+const ALPHA_FLOOR = 96;
+/** Alpha at or above this is solidly garment — forced fully opaque. */
+const ALPHA_CEIL = 176;
+
+/**
+ * Hardens a segmentation mask's alpha, and it earns its keep twice over.
+ *
+ * The model leaves a wide, faint haze of low-alpha pixels across the frame.
+ * Composited onto white that haze was invisible, but a transparent cutout on
+ * the app's dark-mode ground shows it as white speckle around the garment.
+ * It also wrecks automatic detection: the haze reaches the frame edges, so a
+ * bounding box drawn over "anything not fully transparent" is the whole photo.
+ *
+ * A two-point ramp rather than a hard cut: below the floor is dropped, above
+ * the ceiling is made solid, and the band between is stretched across the full
+ * range so the garment's own edge keeps its antialiasing instead of turning
+ * into a jagged stencil.
+ */
+export async function cleanMask(cutout: Blob): Promise<Blob> {
+  const bitmap = await createImageBitmap(cutout);
+  try {
+    const canvas = new OffscreenCanvas(bitmap.width, bitmap.height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return cutout;
+    ctx.drawImage(bitmap, 0, 0);
+
+    const image = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+    const data = image.data;
+    const range = ALPHA_CEIL - ALPHA_FLOOR;
+    for (let i = 3; i < data.length; i += 4) {
+      const alpha = data[i];
+      if (alpha <= ALPHA_FLOOR) data[i] = 0;
+      else if (alpha >= ALPHA_CEIL) data[i] = 255;
+      else data[i] = Math.round(((alpha - ALPHA_FLOOR) / range) * 255);
+    }
+    ctx.putImageData(image, 0, 0);
+
+    return await encodeWithAlpha(canvas);
+  } finally {
+    bitmap.close();
+  }
+}
+
 /**
  * Same centre-crop the plain pipeline uses (src/images/process.ts), so cutout
  * and plain thumbs are framed identically.

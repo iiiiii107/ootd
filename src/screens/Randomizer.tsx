@@ -159,7 +159,13 @@ export default function Randomizer() {
           selected={filters.vibe}
           onToggle={(v) => setFilters({ ...filters, vibe: toggleInArray(filters.vibe, v as Vibe) })}
         />
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+        {/*
+          Wraps rather than scrolls: there are exactly three of these and they
+          never grow, so a scroller only ever hid the third one off the right
+          edge behind a scrollbar. The tag rows above genuinely can grow —
+          a custom group can hold any number of values — so those still scroll.
+        */}
+        <div className="flex flex-wrap gap-1.5">
           {SWITCHES.map(({ key, label }) => {
             const active = filters[key];
             return (

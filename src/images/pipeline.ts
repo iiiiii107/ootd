@@ -1,6 +1,6 @@
 import { extractDominantColor } from './color';
 import { FULL_FRAME, cropToBlob, detectSubjectBounds, type CropRect } from './crop';
-import { cropToThumb, segment } from './cutout';
+import { cleanMask, cropToThumb, segment } from './cutout';
 import { ensureJpeg } from './decode';
 import { processImage } from './process';
 
@@ -49,7 +49,10 @@ export async function analyzePhoto(file: Blob, options: AnalyzeOptions): Promise
     return { base, cutout: null, suggestedCrop: FULL_FRAME, detected: false };
   }
 
-  const cutout = await segment(base);
+  const raw = await segment(base);
+  // Cleaned once, here, so both the stored cutout and the detected bounds are
+  // working from the same hardened mask rather than the model's raw haze.
+  const cutout = raw ? await cleanMask(raw) : null;
   const bounds = options.detect && cutout ? await detectSubjectBounds(cutout) : null;
 
   return {

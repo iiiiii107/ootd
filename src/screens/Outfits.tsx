@@ -5,6 +5,7 @@ import { FilterBar } from '../components/FilterBar';
 import { OutfitTile } from '../components/OutfitTile';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { SearchBar } from '../components/SearchBar';
+import { SortRow } from '../components/SortRow';
 import { SearchIcon } from '../components/icons';
 import { useOutfitItems } from '../db/hooks';
 import { getMeta, setMeta } from '../db/meta';
@@ -13,14 +14,11 @@ import { useGroups } from '../tags/useGroups';
 
 const FILTER_STATE_KEY = 'outfitsFilterState';
 const SORT_KEY_KEY = 'outfitsSortKey';
+const SORT_REVERSED_KEY = 'outfitsSortReversed';
 
 // No 'category' sort here — every item in this view is already category
 // 'outfit', so that sort would be a no-op that only adds a dead-end button.
-const SORT_OPTIONS: { value: SortKey; label: string }[] = [
-  { value: 'newest', label: 'newest' },
-  { value: 'name', label: 'name' },
-  { value: 'lastWorn', label: 'last worn' },
-];
+const SORT_OPTIONS: SortKey[] = ['newest', 'name', 'lastWorn'];
 
 /**
  * The dedicated outfits grid (spec §7.3) — larger cards than Wardrobe's,
@@ -34,18 +32,21 @@ export default function Outfits() {
 
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTER_STATE);
   const [sortKey, setSortKey] = useState<SortKey>('newest');
+  const [sortReversed, setSortReversed] = useState(false);
   const [loadedPersisted, setLoadedPersisted] = useState(false);
   const [openItemId, setOpenItemId] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     void (async () => {
-      const [savedFilters, savedSort] = await Promise.all([
+      const [savedFilters, savedSort, savedReversed] = await Promise.all([
         getMeta<FilterState>(FILTER_STATE_KEY),
         getMeta<SortKey>(SORT_KEY_KEY),
+        getMeta<boolean>(SORT_REVERSED_KEY),
       ]);
       if (savedFilters) setFilters(savedFilters);
       if (savedSort) setSortKey(savedSort);
+      if (savedReversed != null) setSortReversed(savedReversed);
       setLoadedPersisted(true);
     })();
   }, []);
@@ -58,10 +59,14 @@ export default function Outfits() {
     if (loadedPersisted) void setMeta(SORT_KEY_KEY, sortKey);
   }, [sortKey, loadedPersisted]);
 
+  useEffect(() => {
+    if (loadedPersisted) void setMeta(SORT_REVERSED_KEY, sortReversed);
+  }, [sortReversed, loadedPersisted]);
+
   const visible = useMemo(() => {
     if (!items) return undefined;
-    return sortItems(filterItems(items, filters, groups), sortKey);
-  }, [items, filters, groups, sortKey]);
+    return sortItems(filterItems(items, filters, groups), sortKey, sortReversed);
+  }, [items, filters, groups, sortKey, sortReversed]);
 
   if (items === undefined) return null; // first read from IndexedDB
 
@@ -95,26 +100,17 @@ export default function Outfits() {
         </>
       )}
 
-      <div className="flex items-center justify-between border-b border-rule pb-2">
-        <p className="text-[11px] tracking-[0.06em] text-muted uppercase">
-          {visible?.length ?? 0} outfit{visible?.length === 1 ? '' : 's'}
-        </p>
-        <div className="flex gap-1.5">
-          {SORT_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setSortKey(option.value)}
-              aria-pressed={sortKey === option.value}
-              className={`min-h-8 px-2 text-[11px] tracking-[0.04em] uppercase ${
-                sortKey === option.value ? 'text-ink' : 'text-muted'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
+      <SortRow
+        count={visible?.length ?? 0}
+        noun="outfit"
+        options={SORT_OPTIONS}
+        sortKey={sortKey}
+        reversed={sortReversed}
+        onChange={(key, reversed) => {
+          setSortKey(key);
+          setSortReversed(reversed);
+        }}
+      />
 
       {items.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 py-16 text-center">
