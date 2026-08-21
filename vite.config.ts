@@ -6,6 +6,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 import { PAPER } from './scripts/icon.js';
 
 export default defineConfig({
+  base: '/ootd/',
   plugins: [
     react(),
     tailwindcss(),
