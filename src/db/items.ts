@@ -136,18 +136,6 @@ export async function purgeExpiredTrash(): Promise<number> {
   return expired.length;
 }
 
-/** "Wearing this today" (spec §7.1): sets lastWornAt on every piece shown, increments wearCount. */
-export async function markWornToday(ids: string[]): Promise<void> {
-  const now = Date.now();
-  await db.transaction('rw', db.items, async () => {
-    for (const id of ids) {
-      const item = await db.items.get(id);
-      if (!item) continue;
-      await db.items.update(id, { lastWornAt: now, wearCount: item.wearCount + 1, updatedAt: now });
-    }
-  });
-}
-
 /** "♡ favourite both" (spec §7.1) — sets favourite on every piece shown, not a toggle. */
 export async function favoriteMany(ids: string[]): Promise<void> {
   const now = Date.now();
@@ -164,17 +152,23 @@ export async function favoriteMany(ids: string[]): Promise<void> {
  * union (any season any member covers); formality/location/vibe take the
  * first non-null value found among the members, preferring the top.
  */
-export async function createOutfitFromMembers(members: Item[], composite: Blob): Promise<Item> {
+export async function createOutfitFromMembers(members: Item[], name?: string): Promise<Item> {
   const now = Date.now();
   const firstNonNull = <T,>(values: (T | null)[]): T | null => values.find((v) => v != null) ?? null;
 
   const item: Item = {
     id: crypto.randomUUID(),
-    name: await suggestName('outfit'),
+    name: name ?? (await suggestName('outfit')),
     category: 'outfit',
-    image: composite,
-    thumb: composite,
-    hasCutout: false,
+    // No photograph, and deliberately none: this outfit *is* its members, and
+    // every one of their pictures is already in the database. A composite
+    // stored here would be a second copy of them, and a stale one — re-crop a
+    // garment and the outfit would go on showing the old version forever.
+    // What it looks like is composed at render time instead
+    // (src/lib/useOutfitComposite.ts).
+    image: null,
+    thumb: null,
+    hasCutout: members.some((m) => m.hasCutout),
     seasons: [...new Set(members.flatMap((m) => m.seasons))],
     formality: firstNonNull(members.map((m) => m.formality)),
     location: firstNonNull(members.map((m) => m.location)),

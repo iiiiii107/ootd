@@ -55,7 +55,7 @@ function urlFor(key: string, blob: Blob): string {
  * effect — it's idempotent through the cache, and it saves every tile a
  * second render just to learn its own `src`.
  */
-export function useItemImageUrl(id: string, blob: Blob | undefined): string | undefined {
+export function useItemImageUrl(id: string, blob: Blob | null | undefined): string | undefined {
   return blob ? urlFor(`${id}:${blob.size}`, blob) : undefined;
 }
 
@@ -63,7 +63,7 @@ export function useItemImageUrl(id: string, blob: Blob | undefined): string | un
  * For one-off blobs with no stable identity — a photo mid-import that isn't
  * in the database yet. Revokes on unmount, since nothing else will.
  */
-export function useObjectUrl(blob: Blob | undefined): string | undefined {
+export function useObjectUrl(blob: Blob | null | undefined): string | undefined {
   const [url, setUrl] = useState<string | undefined>(undefined);
 
   useEffect(() => {

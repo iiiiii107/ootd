@@ -1,6 +1,6 @@
 import Dexie, { type EntityTable } from 'dexie';
 
-import type { CustomTag, Item, MetaEntry } from './types';
+import type { CustomTag, Item, MetaEntry, Wear } from './types';
 
 /**
  * The one Dexie instance. Nothing outside `src/db/` should import this —
@@ -11,6 +11,7 @@ export const db = new Dexie('ootd') as Dexie & {
   items: EntityTable<Item, 'id'>;
   tags: EntityTable<CustomTag, 'id'>;
   meta: EntityTable<MetaEntry, 'key'>;
+  wears: EntityTable<Wear, 'id'>;
 };
 
 // Index string per spec §4.1. `*seasons` and `*customTags` are multi-entry
@@ -20,4 +21,16 @@ db.version(1).stores({
     'id, category, location, formality, vibe, favorite, inWash, archived, deletedAt, createdAt, lastWornAt, *seasons, *customTags',
   tags: 'id, groupName, sortOrder',
   meta: 'key',
+});
+
+/**
+ * The wear log (spec §7.6). Purely additive — no existing store changes shape,
+ * so Dexie carries every existing record forward untouched and there is no
+ * migration function to get wrong.
+ *
+ * `id` is the local date and needs no separate index; `wornAt` is indexed
+ * because the feed reads this store in time order and nothing else.
+ */
+db.version(2).stores({
+  wears: 'id, wornAt',
 });

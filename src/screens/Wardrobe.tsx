@@ -4,6 +4,7 @@ import { BulkActionBar } from '../components/BulkActionBar';
 import { DetailSheet } from '../components/DetailSheet';
 import { FilterBar } from '../components/FilterBar';
 import { ItemTile } from '../components/ItemTile';
+import { OutfitBuilder } from '../components/OutfitBuilder';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { SearchBar } from '../components/SearchBar';
 import { SortRow } from '../components/SortRow';
@@ -41,6 +42,7 @@ export default function Wardrobe() {
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [buildingFrom, setBuildingFrom] = useState<string[] | null>(null);
 
   // Restore filters and sort once on mount (spec §5: "filter state persists
   // across app launches"). Loaded async, so writes below wait for this first.
@@ -193,7 +195,21 @@ export default function Wardrobe() {
         </div>
       )}
 
-      {selectMode && <BulkActionBar selectedIds={[...selectedIds]} onDone={exitSelectMode} />}
+      {selectMode && (
+        <BulkActionBar
+          selectedIds={[...selectedIds]}
+          onDone={exitSelectMode}
+          onMakeOutfit={() => setBuildingFrom([...selectedIds])}
+        />
+      )}
+
+      {buildingFrom && (
+        <OutfitBuilder
+          initialIds={buildingFrom}
+          onClose={() => setBuildingFrom(null)}
+          onCreated={() => exitSelectMode()}
+        />
+      )}
 
       {openItemId && <DetailSheet itemId={openItemId} onClose={() => setOpenItemId(null)} />}
     </div>

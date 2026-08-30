@@ -497,7 +497,7 @@ function DangerZone() {
   );
 }
 
-function MiniThumb({ blob, name }: { blob: Blob; name: string }) {
+function MiniThumb({ blob, name }: { blob: Blob | null; name: string }) {
   const url = useObjectUrl(blob);
   return (
     <div className="h-12 w-12 shrink-0 bg-paper">

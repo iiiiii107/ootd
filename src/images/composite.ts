@@ -14,7 +14,14 @@ const SIZE = 400;
 const QUALITY = 0.85;
 
 export async function composeOutfitThumb(members: Item[]): Promise<Blob> {
-  const bitmaps = await Promise.all(members.map((member) => createImageBitmap(member.thumb)));
+  // Members without a thumb are outfits themselves, or records mid-restore.
+  // Nesting an outfit inside an outfit is not a thing the app offers, so this
+  // is a guard rather than a case: draw what can be drawn.
+  const drawable = members.filter((member) => member.thumb != null);
+  if (drawable.length === 0) throw new Error('No member images to compose');
+  const bitmaps = await Promise.all(
+    drawable.map((member) => createImageBitmap(member.thumb as Blob)),
+  );
   try {
     const canvas = new OffscreenCanvas(SIZE, SIZE);
     const ctx = canvas.getContext('2d');
@@ -34,7 +41,7 @@ export async function composeOutfitThumb(members: Item[]): Promise<Blob> {
     // Transparency is only worth its file size when a member actually has
     // some: a stack of cutouts should show the app's background between the
     // pieces, while a stack of ordinary photos is opaque anyway.
-    return members.some((member) => member.hasCutout)
+    return drawable.some((member) => member.hasCutout)
       ? await encodeWithAlpha(canvas)
       : await canvas.convertToBlob({ type: 'image/jpeg', quality: QUALITY });
   } finally {

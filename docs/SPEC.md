@@ -200,6 +200,10 @@ pick: weighted-random a top, then weighted-random a bottom from those compatible
 
 ### 7.3 Outfits
 
+An outfit can be **built from garments already in the wardrobe** — from the wardrobe's multi-select, or the `+` on the Outfits screen. Such an outfit stores **no image at all**: it *is* its members, whose pictures the database already holds, so a stored composite would be both a second copy and a stale one (re-crop a garment and the outfit would show the old version forever). What it looks like is composed from their thumbs at render time. An outfit photographed as a whole look through Add keeps its own image, and both kinds render through one call site.
+
+The consequence worth stating: deleting a garment removes it from every past ootd and saved outfit that used it. That is intended — a history showing clothes that were thrown out, as though they were still owned, would be a claim the app cannot support.
+
 Same grid filtered to `category: 'outfit'`, larger cards. **Both kinds live here together:** photographs of a real worn look, and composites saved from the randomizer. Outfits carry the **full tag set** (seasons, formality, location, vibe, favourite, custom tags) and are filterable exactly like items. Composites inherit their tags from their member pieces at save time, then diverge freely.
 
 ### 7.4 Add
@@ -224,6 +228,18 @@ Nothing on this screen needs an explicit save — items are written the moment a
 **Detection is the same single inference pass as background removal** — the segmentation model's alpha mask *is* the garment outline, so its bounding box comes free. The two are separately switchable in Settings but having both on costs no more than either alone. Bounds come from the alpha *mass* per row and column, discarding the outermost 1% on each axis: segmentation leaves a faint haze across the frame, and a plain min/max scan over "any pixel above the threshold" latches onto that haze and reports the whole frame.
 
 **Tagging is never mandatory beyond category.** Items save the moment the crop is confirmed, so walking away mid-tagging loses nothing, and anything skipped appears under the `needs tagging` filter to be finished later on the sofa. Category carries forward to the next photo, because five tops in a row usually share everything.
+
+### 7.6 ootds — the wear log
+
+Two things live on the Outfits screen, related but not the same: **recently worn** (the default) and **saved**.
+
+**The log.** One entry per day, most recent first. The local date is the entry's primary key, which makes "logging again replaces today" true by construction rather than by a check that could race — and it must be the *local* date, or an outfit logged in the evening files itself under tomorrow.
+
+An entry records the **garments**, not the outfit, so "when did I last wear this skirt" stays answerable whether the skirt was worn alone or as part of a saved look. The outfit it came from is kept alongside when there was one.
+
+**`lastWornAt` and `wearCount` are caches derived from the log, never incremented.** The randomizer weights by neglect and the wardrobe sorts by last worn, so both fields stay — but the log is what is true, and they are recomputed from it whenever it changes. Incrementing cannot survive a replaced day: a counter only goes up, so changing your mind twice would leave garments claiming wears that never happened, and deleting the most recent wear could never expose the one before it.
+
+**Logging must acknowledge itself.** The randomizer's button wrote to the database and then looked exactly as it had a second earlier, which is indistinguishable from a button that does nothing — the single most common report that the feature "didn't work".
 
 ### 7.5 Settings
 

@@ -1,5 +1,5 @@
 import type { Item } from '../db/types';
-import { useItemImageUrl } from '../lib/useObjectUrl';
+import { useOutfitComposite } from '../lib/useOutfitComposite';
 
 /**
  * A larger card than the Wardrobe grid's plain ItemTile (spec §7.3) — a
@@ -7,7 +7,9 @@ import { useItemImageUrl } from '../lib/useObjectUrl';
  * apart at a glance, which a single garment's thumb doesn't need.
  */
 export function OutfitTile({ item, onTap }: { item: Item; onTap: () => void }) {
-  const url = useItemImageUrl(item.id, item.thumb);
+  // Photographed looks show their photo; ones built from wardrobe pieces
+  // are composed from those pieces here rather than stored (spec §7.3).
+  const url = useOutfitComposite(item);
 
   return (
     <button type="button" onClick={onTap} className="flex flex-col overflow-hidden rounded-card border border-rule text-left">

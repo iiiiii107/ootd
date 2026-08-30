@@ -2,7 +2,7 @@ import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 
 import { setMeta } from './meta';
 import { db } from './schema';
-import type { CustomTag, Item } from './types';
+import type { CustomTag, Item, Wear } from './types';
 
 /**
  * Export/import backup (spec §12 R1) — the disaster-recovery escape hatch
@@ -19,27 +19,42 @@ import type { CustomTag, Item } from './types';
 type ManifestItem = Omit<Item, 'image' | 'thumb'>;
 
 interface Manifest {
-  version: 1;
+  /**
+   * 2 adds the wear log. Read leniently rather than rejected on mismatch: a
+   * version-1 archive is still a complete wardrobe, it simply predates the
+   * log, and refusing to restore someone's clothes over a missing field
+   * would be the worst possible trade in this particular file.
+   */
+  version: 1 | 2;
   exportedAt: number;
   items: ManifestItem[];
   tags: CustomTag[];
+  wears?: Wear[];
 }
 
 export async function exportBackup(): Promise<Blob> {
   const items = await db.items.filter((item) => item.deletedAt == null).toArray();
   const tags = await db.tags.toArray();
+  const wears = await db.wears.toArray();
 
   const manifest: Manifest = {
-    version: 1,
+    version: 2,
     exportedAt: Date.now(),
     items: items.map(({ image: _image, thumb: _thumb, ...rest }) => rest),
     tags,
+    // Plain JSON, no blobs: the log is references and dates. Without it a
+    // restore would bring the wardrobe back and silently lose every ootd.
+    wears,
   };
 
   const files: Record<string, Uint8Array> = {
     'manifest.json': strToU8(JSON.stringify(manifest)),
   };
   for (const item of items) {
+    // An outfit built from wardrobe pieces carries no photograph of its own —
+    // it is its members, and their images are already in this archive. Nothing
+    // to write, and nothing lost: it recomposes from them on restore.
+    if (!item.image || !item.thumb) continue;
     files[`images/${item.id}.jpg`] = new Uint8Array(await item.image.arrayBuffer());
     files[`thumbs/${item.id}.jpg`] = new Uint8Array(await item.thumb.arrayBuffer());
   }
@@ -67,7 +82,15 @@ export async function importBackup(file: Blob): Promise<ImportSummary> {
   const items: Item[] = manifest.items.map((meta) => {
     const image = files[`images/${meta.id}.jpg`];
     const thumb = files[`thumbs/${meta.id}.jpg`];
-    if (!image || !thumb) throw new Error(`Backup is missing photos for "${meta.name}".`);
+    // An outfit assembled from wardrobe pieces has no photograph by design,
+    // so missing files are expected there and only there. For a garment they
+    // still mean a damaged archive, and that must not import silently.
+    if (!image || !thumb) {
+      if (meta.category === 'outfit' && meta.memberIds.length > 0) {
+        return { ...meta, image: null, thumb: null };
+      }
+      throw new Error(`Backup is missing photos for "${meta.name}".`);
+    }
     return {
       ...meta,
       image: new Blob([image as BlobPart], { type: 'image/jpeg' }),
@@ -78,9 +101,12 @@ export async function importBackup(file: Blob): Promise<ImportSummary> {
   // bulkPut, not bulkAdd — preserves original ids, so memberIds and
   // customTags references between items stay intact, and re-running the
   // same import twice is a safe no-op rather than a duplicate-key error.
-  await db.transaction('rw', db.items, db.tags, async () => {
+  await db.transaction('rw', db.items, db.tags, db.wears, async () => {
     await db.items.bulkPut(items);
     await db.tags.bulkPut(manifest.tags);
+    // Absent in a version-1 archive; restoring it as an empty list would
+    // wipe a log the device already had.
+    if (manifest.wears?.length) await db.wears.bulkPut(manifest.wears);
   });
 
   return { itemCount: items.length, tagCount: manifest.tags.length };

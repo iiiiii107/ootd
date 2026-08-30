@@ -4,10 +4,10 @@ import { LockIcon } from '../components/icons';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { TagChipRow } from '../components/TagChipRow';
 import { useWardrobeItems } from '../db/hooks';
-import { createOutfitFromMembers, favoriteMany, markWornToday } from '../db/items';
+import { createOutfitFromMembers, favoriteMany } from '../db/items';
+import { logWearToday } from '../db/wears';
 import { getMeta, setMeta } from '../db/meta';
 import type { Formality, Item, Location, Season, Vibe } from '../db/types';
-import { composeOutfitThumb } from '../images/composite';
 import { toggleInArray } from '../lib/toggleInArray';
 import { useItemImageUrl } from '../lib/useObjectUrl';
 import {
@@ -49,6 +49,10 @@ export default function Randomizer() {
   const [lockedBottom, setLockedBottom] = useState<Item | null>(null);
   const [savedOutfitId, setSavedOutfitId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  // Whether *this* result has been logged. The button used to write to the
+  // database and then look exactly as it had a moment earlier, which is
+  // indistinguishable from a button that does nothing at all.
+  const [loggedWear, setLoggedWear] = useState(false);
   // Uncapped, unlike `history` (which caps at 8 for the anti-repeat window) —
   // this only exists to force the result to remount and re-play its fade-in
   // on every shuffle, including the 9th and beyond.
@@ -77,6 +81,7 @@ export default function Randomizer() {
     });
     setResult(next);
     setSavedOutfitId(null);
+    setLoggedWear(false);
     setShuffleCount((n) => n + 1);
     if (next.status === 'ok') {
       const shown = [next.outfit.top.id, next.outfit.bottom.id, next.outfit.accessory?.id].filter(
@@ -110,7 +115,9 @@ export default function Randomizer() {
 
   async function handleWearingToday() {
     const ids = members().map((m) => m.id);
-    if (ids.length > 0) await markWornToday(ids);
+    if (ids.length === 0) return;
+    await logWearToday(ids, savedOutfitId);
+    setLoggedWear(true);
   }
 
   async function handleSaveAsOutfit() {
@@ -118,8 +125,7 @@ export default function Randomizer() {
     if (picked.length === 0) return;
     setIsSaving(true);
     try {
-      const composite = await composeOutfitThumb(picked);
-      const outfit = await createOutfitFromMembers(picked, composite);
+      const outfit = await createOutfitFromMembers(picked);
       setSavedOutfitId(outfit.id);
     } finally {
       setIsSaving(false);
@@ -233,9 +239,19 @@ export default function Randomizer() {
             <button
               type="button"
               onClick={() => void handleWearingToday()}
-              className="min-h-11 flex-1 rounded-chip border border-rule text-[13px] text-ink"
+              disabled={loggedWear}
+              className="min-h-11 flex-1 rounded-chip border text-[13px]"
+              style={
+                loggedWear
+                  ? {
+                      backgroundColor: 'var(--color-on)',
+                      borderColor: 'var(--color-on)',
+                      color: 'var(--color-on-tag)',
+                    }
+                  : { borderColor: 'var(--color-rule)', color: 'var(--color-ink)' }
+              }
             >
-              wearing this today
+              {loggedWear ? "today's ootd ✓" : 'wearing this today'}
             </button>
             <button
               type="button"

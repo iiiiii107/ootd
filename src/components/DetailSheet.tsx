@@ -3,14 +3,15 @@ import { useState } from 'react';
 import { useItem } from '../db/hooks';
 import {
   archiveItem,
-  markWornToday,
   outfitsReferencing,
   toggleFavorite,
   toggleWash,
   trashItem,
   updateItem,
 } from '../db/items';
+import { logWearToday } from '../db/wears';
 import { useItemImageUrl } from '../lib/useObjectUrl';
+import { useOutfitComposite } from '../lib/useOutfitComposite';
 import { useDebouncedText } from '../lib/useDebouncedText';
 import { useGroups } from '../tags/useGroups';
 import { TagChipRow } from './TagChipRow';
@@ -43,7 +44,10 @@ function wornToday(lastWornAt: number | null): boolean {
 export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () => void }) {
   const item = useItem(itemId);
   const groups = useGroups();
-  const imageUrl = useItemImageUrl(itemId, item?.image);
+  // An outfit assembled from wardrobe pieces has no picture of its own, so
+  // this composes one from its members; a photographed item returns its own
+  // image untouched. One call site, both kinds.
+  const imageUrl = useOutfitComposite(item, 'image');
   const [viewingMemberId, setViewingMemberId] = useState<string | null>(null);
 
   // Text fields write on a pause rather than per keystroke — see
@@ -59,6 +63,18 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
   );
 
   if (!item) return null;
+
+  /**
+   * Logging an outfit records its *pieces*, not the outfit — the log is about
+   * garments, so "when did I last wear this skirt" stays answerable whether
+   * the skirt was worn alone or as part of a saved look. The outfit is kept
+   * alongside as the thing that was chosen.
+   */
+  function logWear() {
+    if (!item) return;
+    const isOutfit = item.memberIds.length > 0;
+    return logWearToday(isOutfit ? item.memberIds : [item.id], isOutfit ? item.id : null);
+  }
 
   async function handleDelete() {
     if (!item) return;
@@ -165,7 +181,7 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
         <div className="flex flex-col gap-2 border-t border-rule pt-5">
           <button
             type="button"
-            onClick={() => void markWornToday([item.id, ...item.memberIds])}
+            onClick={() => void logWear()}
             className="min-h-11 rounded-chip border border-ink text-[13px] tracking-wide text-ink"
           >
             {wornToday(item.lastWornAt) ? 'Worn today ✓' : 'I wore this'}

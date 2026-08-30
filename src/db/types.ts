@@ -29,10 +29,19 @@ export interface Item {
   name: string;
   /** The only mandatory tag at save time. */
   category: Category;
-  /** Processed JPEG, ~1200px longest edge, quality 0.82. */
-  image: Blob;
-  /** 400×400 centre-cropped JPEG for grid scrolling. */
-  thumb: Blob;
+  /**
+   * Processed JPEG, ~1200px longest edge, quality 0.82.
+   *
+   * Null only for an outfit built by hand out of garments already in the
+   * wardrobe (spec §7.3). Such an outfit *is* its members — there is no
+   * photograph of it, and storing a composite would be a second copy of
+   * pictures the database already holds. What it looks like is composed at
+   * render time instead (`useOutfitComposite`). An outfit photographed as a
+   * whole look through Add still carries its own image like anything else.
+   */
+  image: Blob | null;
+  /** 400×400 centre-cropped JPEG for grid scrolling. Null for the same reason as `image`. */
+  thumb: Blob | null;
   /** Whether background removal succeeded (spec Phase 5). Always false until then. */
   hasCutout: boolean;
   /** Multi-select. Empty means untagged, not "no season". */
@@ -78,6 +87,32 @@ export interface CustomTag {
    *  row sharing a `groupName` — it describes the group, not the value. */
   multiSelect: boolean;
   sortOrder: number;
+}
+
+/**
+ * One day's outfit — what was actually worn, as opposed to what is owned.
+ *
+ * The local date is the primary key, which is what makes "one entry per day,
+ * logging again replaces it" true by construction rather than by a
+ * read-modify-write that could race or drift. It has to be the *local* date:
+ * derived from UTC, anything logged late in the evening would file itself
+ * under tomorrow.
+ *
+ * This log is the source of truth for wear. `Item.lastWornAt` and
+ * `Item.wearCount` are caches derived from it (src/db/wears.ts) — kept because
+ * the randomizer weights by neglect and the wardrobe sorts by last worn, and
+ * both would otherwise have to scan the whole log on every read.
+ */
+export interface Wear {
+  /** Local calendar date, `YYYY-MM-DD`. Also the primary key. */
+  id: string;
+  /** Epoch ms of the moment it was logged — ordering within the feed. */
+  wornAt: number;
+  /** The garments worn. References, never copies. */
+  memberIds: string[];
+  /** The saved outfit this came from, if it came from one. */
+  outfitId: string | null;
+  note: string;
 }
 
 /** Key-value store: `lastBackupAt`, `lastFilterState`, `schemaVersion`, `settings`. */

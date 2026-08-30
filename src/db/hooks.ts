@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { DEFAULT_APPEARANCE, type Appearance } from '../design/theme';
 import { APPEARANCE_KEY } from './appearance';
 import { db } from './schema';
-import type { CustomTag, Item } from './types';
+import type { CustomTag, Item, Wear } from './types';
 
 /**
  * The base wardrobe list: newest first, trashed items excluded outright
@@ -152,4 +152,27 @@ export function useAppearance(): Appearance {
     return { ...DEFAULT_APPEARANCE, ...(entry?.value as Partial<Appearance> | undefined) };
   }, []);
   return value ?? DEFAULT_APPEARANCE;
+}
+
+/** The wear log, most recent day first (spec §7.6). */
+export function useWears(): Wear[] | undefined {
+  return useLiveQuery(() => db.wears.orderBy('wornAt').reverse().toArray(), []);
+}
+
+/**
+ * The garments named by a wear entry, in the order they were recorded.
+ *
+ * Missing ids are dropped rather than rendered as gaps: a garment deleted
+ * since is genuinely no longer part of the wardrobe, and a past ootd showing
+ * clothes that no longer exist would be a lie the app has no way to back up.
+ */
+export function useWearMembers(memberIds: string[]): Item[] | undefined {
+  const key = memberIds.join(',');
+  return useLiveQuery(
+    async () => {
+      const found = await db.items.bulkGet(memberIds);
+      return found.filter((item): item is Item => item != null);
+    },
+    [key],
+  );
 }

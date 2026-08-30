@@ -15,9 +15,12 @@ const LOCATIONS: { value: Location; label: string }[] = [
 export function BulkActionBar({
   selectedIds,
   onDone,
+  onMakeOutfit,
 }: {
   selectedIds: string[];
   onDone: () => void;
+  /** Absent where building an outfit makes no sense — the outfits grid itself. */
+  onMakeOutfit?: () => void;
 }) {
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col gap-2 border-t border-rule bg-paper px-4 py-3 pb-[max(env(safe-area-inset-bottom),12px)]">
@@ -29,6 +32,27 @@ export function BulkActionBar({
       </div>
 
       <div className="flex flex-wrap gap-1.5">
+        {/*
+          First, and in the accent, because it is the one action here that
+          makes something new rather than editing what is already selected.
+          Two pieces is the point of it, but one is allowed — a dress is an
+          outfit on its own.
+        */}
+        {onMakeOutfit && (
+          <button
+            type="button"
+            disabled={selectedIds.length === 0}
+            onClick={onMakeOutfit}
+            className="min-h-8 rounded-chip border px-2.5 text-[12px] disabled:opacity-40"
+            style={{
+              backgroundColor: 'var(--color-accent)',
+              borderColor: 'var(--color-accent)',
+              color: 'var(--color-on-tag)',
+            }}
+          >
+            make an outfit
+          </button>
+        )}
         <button
           type="button"
           disabled={selectedIds.length === 0}
