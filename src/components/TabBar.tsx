@@ -27,8 +27,8 @@ export function TabBar() {
           to={tab.to}
           end={'end' in tab ? tab.end : false}
           className={({ isActive }) =>
-            `flex min-h-11 flex-col items-center justify-center gap-1 py-4 text-[11px] tracking-[0.08em] uppercase ${
-              isActive ? 'text-ink' : 'text-muted'
+            `flex min-h-11 flex-col items-center justify-center gap-1 py-4 text-[13px] ${
+              isActive ? 'font-medium text-accent' : 'text-muted'
             }`
           }
         >

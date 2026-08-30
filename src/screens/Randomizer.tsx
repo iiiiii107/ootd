@@ -174,9 +174,16 @@ export default function Randomizer() {
                 type="button"
                 onClick={() => setFilters({ ...filters, [key]: !active })}
                 aria-pressed={active}
-                className={`rounded-chip min-h-8 shrink-0 border px-2.5 text-[12px] tracking-[0.02em] ${
-                  active ? 'border-ink bg-ink text-paper' : 'border-rule text-muted'
-                }`}
+                className="rounded-chip min-h-8 shrink-0 border px-2.5 text-[12px] tracking-[0.02em]"
+                style={
+                  active
+                    ? {
+                  backgroundColor: 'var(--color-on)',
+                  borderColor: 'var(--color-on)',
+                  color: 'var(--color-on-tag)',
+                }
+                    : { borderColor: 'var(--color-rule)', color: 'var(--color-muted)' }
+                }
               >
                 {label}
               </button>
@@ -188,7 +195,12 @@ export default function Randomizer() {
       <button
         type="button"
         onClick={shuffle}
-        className="min-h-14 rounded-chip border border-ink text-[15px] tracking-[0.06em] text-ink uppercase"
+        className="min-h-14 rounded-chip border text-[16px] font-medium tracking-[0.01em]"
+        style={{
+          backgroundColor: 'var(--color-accent)',
+          borderColor: 'var(--color-accent)',
+          color: 'var(--color-on-tag)',
+        }}
       >
         {result ? 'reshuffle' : 'shuffle'}
       </button>
@@ -266,8 +278,13 @@ function ResultCard({
           aria-pressed={locked}
           aria-label={locked ? `Unlock the ${label}` : `Lock the ${label}`}
           className={`rounded-chip absolute top-2 right-2 flex h-9 w-9 items-center justify-center border ${
-            locked ? 'border-ink bg-ink text-paper' : 'border-rule bg-paper/85 text-ink'
+            locked ? '' : 'border-rule bg-paper/85 text-ink'
           }`}
+          style={locked ? {
+                  backgroundColor: 'var(--color-on)',
+                  borderColor: 'var(--color-on)',
+                  color: 'var(--color-on-tag)',
+                } : undefined}
         >
           <LockIcon locked={locked} className="h-4 w-4" />
         </button>

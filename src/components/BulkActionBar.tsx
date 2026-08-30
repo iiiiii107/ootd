@@ -33,7 +33,7 @@ export function BulkActionBar({
           type="button"
           disabled={selectedIds.length === 0}
           onClick={() => void bulkSetWash(selectedIds, true)}
-          className="min-h-8 rounded-chip border border-rule px-2.5 text-[11px] tracking-[0.06em] text-ink uppercase disabled:opacity-40"
+          className="min-h-8 rounded-chip border border-rule px-2.5 text-[12px] text-ink disabled:opacity-40"
         >
           mark in the wash
         </button>
@@ -41,7 +41,7 @@ export function BulkActionBar({
           type="button"
           disabled={selectedIds.length === 0}
           onClick={() => void bulkSetWash(selectedIds, false)}
-          className="min-h-8 rounded-chip border border-rule px-2.5 text-[11px] tracking-[0.06em] text-ink uppercase disabled:opacity-40"
+          className="min-h-8 rounded-chip border border-rule px-2.5 text-[12px] text-ink disabled:opacity-40"
         >
           mark clean
         </button>
@@ -51,7 +51,7 @@ export function BulkActionBar({
             type="button"
             disabled={selectedIds.length === 0}
             onClick={() => void bulkSetLocation(selectedIds, value)}
-            className="min-h-8 rounded-chip border border-rule px-2.5 text-[11px] tracking-[0.06em] text-ink uppercase disabled:opacity-40"
+            className="min-h-8 rounded-chip border border-rule px-2.5 text-[12px] text-ink disabled:opacity-40"
           >
             → {label}
           </button>

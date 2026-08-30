@@ -19,6 +19,16 @@ export interface TagGroup {
   multiSelect: boolean;
   /** The five built-ins have special pairing behaviour and can't be deleted. */
   builtin: boolean;
+  /**
+   * The group's colour, as a CSS custom property name. This is the group's
+   * identity wherever it appears — the label, and the fill of its selected
+   * chips — and it is what distinguishes one group from another at a glance.
+   *
+   * A property name rather than a Tailwind class because these get composed
+   * at runtime for custom groups, and Tailwind only emits utilities it can
+   * find as complete literal strings in the source.
+   */
+  hue: string;
   options: TagOption[];
   /** This item's current values in the group — 0, 1, or many. */
   getValues(item: Item): string[];
@@ -31,10 +41,27 @@ export interface TagGroup {
   toggle(item: Item, value: string): Partial<Item>;
 }
 
+/**
+ * The hues a group can own, in assignment order. Custom groups cycle through
+ * this list, so the sixth custom group reuses the first colour rather than
+ * running out — a repeat is far better than an uncoloured group, and by then
+ * there are enough groups on screen that position carries as much of the
+ * distinction as colour does.
+ */
+export const TAG_HUES = [
+  '--color-tag-1',
+  '--color-tag-2',
+  '--color-tag-3',
+  '--color-tag-4',
+  '--color-tag-5',
+  '--color-tag-6',
+] as const;
+
 function singleSelectGroup(
   id: string,
   label: string,
   field: 'formality' | 'location' | 'vibe',
+  hue: string,
   options: TagOption[],
 ): TagGroup {
   return {
@@ -42,6 +69,7 @@ function singleSelectGroup(
     label,
     multiSelect: false,
     builtin: true,
+    hue,
     options,
     getValues: (item) => {
       const value = item[field];
@@ -58,6 +86,7 @@ export const CATEGORY_GROUP: TagGroup = {
   label: 'Category',
   multiSelect: false,
   builtin: true,
+  hue: TAG_HUES[0],
   // No 'outfit' option here on purpose — this group is what the Wardrobe
   // filter bar and item editor render, and outfit-category items never
   // appear in the wardrobe grid (spec §7.3); they get their own view and
@@ -79,6 +108,7 @@ export const SEASON_GROUP: TagGroup = {
   label: 'Season',
   multiSelect: true,
   builtin: true,
+  hue: TAG_HUES[1],
   options: [
     { value: 'spring', label: 'spring' },
     { value: 'summer', label: 'summer' },
@@ -96,13 +126,13 @@ export const SEASON_GROUP: TagGroup = {
   },
 };
 
-export const FORMALITY_GROUP = singleSelectGroup('formality', 'Formality', 'formality', [
+export const FORMALITY_GROUP = singleSelectGroup('formality', 'Formality', 'formality', TAG_HUES[2], [
   { value: 'formal', label: 'formal' },
   { value: 'casual', label: 'casual' },
   { value: 'home', label: 'home' },
 ]);
 
-export const LOCATION_GROUP = singleSelectGroup('location', 'Location', 'location', [
+export const LOCATION_GROUP = singleSelectGroup('location', 'Location', 'location', TAG_HUES[3], [
   { value: 'university', label: 'university' },
   { value: 'linh', label: '@Linh' },
   { value: 'home', label: 'home' },
@@ -111,7 +141,7 @@ export const LOCATION_GROUP = singleSelectGroup('location', 'Location', 'locatio
 
 // Ordered masculine → androgynous → feminine so the value that pairs with
 // everything (spec §7.1's vibe rule) sits between the two it reconciles.
-export const VIBE_GROUP = singleSelectGroup('vibe', 'Vibe', 'vibe', [
+export const VIBE_GROUP = singleSelectGroup('vibe', 'Vibe', 'vibe', TAG_HUES[4], [
   { value: 'masculine', label: 'masculine' },
   { value: 'androgynous', label: 'androgynous' },
   { value: 'feminine', label: 'feminine' },

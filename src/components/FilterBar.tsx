@@ -52,9 +52,16 @@ export function FilterBar({
               type="button"
               onClick={() => onChange({ ...filters, [key]: !active })}
               aria-pressed={active}
-              className={`rounded-chip min-h-8 shrink-0 border px-2.5 text-[12px] tracking-[0.02em] ${
-                active ? 'border-ink bg-ink text-paper' : 'border-rule text-muted'
-              }`}
+              className="rounded-chip min-h-8 shrink-0 border px-2.5 text-[12px] tracking-[0.02em]"
+              style={
+                active
+                  ? {
+                  backgroundColor: 'var(--color-on)',
+                  borderColor: 'var(--color-on)',
+                  color: 'var(--color-on-tag)',
+                }
+                  : { borderColor: 'var(--color-rule)', color: 'var(--color-muted)' }
+              }
             >
               {label}
             </button>

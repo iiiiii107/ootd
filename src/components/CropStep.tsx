@@ -89,7 +89,7 @@ export function CropStep({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-paper">
       <div className="flex items-center justify-between border-b border-rule px-5 py-3">
-        <p className="text-[11px] tracking-[0.08em] text-muted uppercase">
+        <p className="text-[12px] text-muted">
           crop {total > 1 ? `${index + 1} of ${total}` : ''}
         </p>
         <button
@@ -153,7 +153,12 @@ export function CropStep({
           <button
             type="button"
             onClick={() => onConfirm(rect)}
-            className="min-h-12 flex-[2] rounded-chip border border-ink bg-ink text-[14px] tracking-wide text-paper"
+            className="min-h-12 flex-[2] rounded-chip border text-[14px] font-medium"
+            style={{
+              backgroundColor: 'var(--color-accent)',
+              borderColor: 'var(--color-accent)',
+              color: 'var(--color-on-tag)',
+            }}
           >
             {index + 1 < total ? 'Next photo' : 'Save'}
           </button>

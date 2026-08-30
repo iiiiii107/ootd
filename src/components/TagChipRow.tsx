@@ -20,7 +20,15 @@ export function TagChipRow({
 }) {
   return (
     <div className="flex flex-col gap-1.5">
-      <p className="text-[11px] tracking-[0.08em] text-muted uppercase">{group.label}</p>
+      {/*
+        The group's name in the group's own colour. This used to be muted grey
+        small-caps with wide letterspacing, which made every group look the
+        same and read like shouting; the colour does the distinguishing now,
+        so the word can just be a word.
+      */}
+      <p className="text-[12px] font-medium" style={{ color: `var(${group.hue})` }}>
+        {group.label}
+      </p>
       <div className="flex gap-1.5 overflow-x-auto pb-0.5">
         {group.options.map((option) => {
           const active = selected.includes(option.value);
@@ -30,9 +38,16 @@ export function TagChipRow({
               type="button"
               onClick={() => onToggle(option.value)}
               aria-pressed={active}
-              className={`rounded-chip min-h-8 shrink-0 border px-2.5 text-[12px] tracking-[0.02em] ${
-                active ? 'border-ink bg-ink text-paper' : 'border-rule text-ink'
-              }`}
+              className="rounded-chip min-h-8 shrink-0 border px-2.5 text-[12px] tracking-[0.02em]"
+              style={
+                active
+                  ? {
+                      backgroundColor: `var(${group.hue})`,
+                      borderColor: `var(${group.hue})`,
+                      color: 'var(--color-on-tag)',
+                    }
+                  : { borderColor: `color-mix(in oklab, var(${group.hue}) 38%, transparent)` }
+              }
             >
               {option.label}
             </button>

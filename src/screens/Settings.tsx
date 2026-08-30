@@ -37,7 +37,7 @@ export default function Settings() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-[13px] font-medium tracking-[0.08em] text-ink uppercase">{title}</h2>
+      <h2 className="text-[15px] font-display font-semibold text-ink">{title}</h2>
       {children}
     </section>
   );
@@ -119,9 +119,16 @@ function Toggle({
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={`rounded-chip min-h-11 w-fit border px-3 text-[13px] ${
-        on ? 'border-ink bg-ink text-paper' : 'border-rule text-ink'
-      }`}
+      className="rounded-chip min-h-11 w-fit border px-3 text-[13px]"
+      style={
+        on
+          ? {
+              backgroundColor: 'var(--color-on)',
+              borderColor: 'var(--color-on)',
+              color: 'var(--color-on-tag)',
+            }
+          : { borderColor: 'var(--color-rule)', color: 'var(--color-ink)' }
+      }
     >
       {on ? onLabel : offLabel}
     </button>

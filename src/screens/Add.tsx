@@ -12,6 +12,7 @@ import type { PhotoAnalysis } from '../images/pipeline';
 import { analyzePhotoAsync, finishPhotoAsync } from '../images/pipelineClient';
 import { useDebouncedText } from '../lib/useDebouncedText';
 import { useItemImageUrl } from '../lib/useObjectUrl';
+import { CATEGORY_GROUP } from '../tags/groups';
 import { useGroups } from '../tags/useGroups';
 
 interface SavedEntry {
@@ -190,7 +191,7 @@ export default function Add() {
         </ul>
       )}
 
-      {status && <p className="text-[11px] tracking-[0.1em] text-muted uppercase">{status}</p>}
+      {status && <p className="text-[13px] text-muted">{status}</p>}
 
       {/*
         Everything on this screen is already in the database — tags included,
@@ -207,7 +208,12 @@ export default function Add() {
               setSaved([]);
               void navigate('/wardrobe');
             }}
-            className="min-h-12 rounded-chip border border-ink bg-ink text-[14px] tracking-wide text-paper"
+            className="min-h-12 rounded-chip border text-[14px] font-medium"
+            style={{
+              backgroundColor: 'var(--color-accent)',
+              borderColor: 'var(--color-accent)',
+              color: 'var(--color-on-tag)',
+            }}
           >
             Done · {savedCount} added
           </button>
@@ -323,9 +329,19 @@ function TagCard({
                 type="button"
                 onClick={() => void changeCategory(category)}
                 aria-pressed={item.category === category}
-                className={`min-h-8 border px-2.5 text-[11px] tracking-[0.06em] uppercase ${
-                  item.category === category ? 'border-ink text-ink' : 'border-rule text-muted'
-                }`}
+                className="rounded-chip min-h-8 border px-2.5 text-[12px]"
+                style={
+                  item.category === category
+                    ? {
+                        backgroundColor: `var(${CATEGORY_GROUP.hue})`,
+                        borderColor: `var(${CATEGORY_GROUP.hue})`,
+                        color: 'var(--color-on-tag)',
+                      }
+                    : {
+                        borderColor: `color-mix(in oklab, var(${CATEGORY_GROUP.hue}) 38%, transparent)`,
+                        color: 'var(--color-muted)',
+                      }
+                }
               >
                 {category}
               </button>
@@ -338,7 +354,7 @@ function TagCard({
         type="button"
         onClick={() => setExpanded(!expanded)}
         aria-expanded={expanded}
-        className="min-h-9 w-fit text-[11px] tracking-[0.08em] text-muted uppercase"
+        className="min-h-9 w-fit text-[12px] text-muted underline underline-offset-4"
       >
         {expanded ? 'hide tags' : 'add tags'}
       </button>

@@ -22,8 +22,40 @@
   --color-rule: #e8e2d6;
   --color-sunken: #f2eee5;
 
-  /* The one accent: rust, shared with the spare apps. */
+  /* The one accent: rust, shared with the spare apps. Reserved for
+     destructive actions and the in-wash marker — never decorative. */
   --color-accent: #b8714c;
+
+  /* The tag hues.
+   *
+   * Each tag group owns one, and it is the group's identity everywhere the
+   * group appears: its label, and the fill of its selected chips. This is
+   * what tells season from formality at a glance — the job small-caps and
+   * letterspacing used to do badly.
+   *
+   * Drawn from the spare apps' task colours rather than invented, and each
+   * one darkened until paper-coloured text sits legibly on it, since these
+   * are chip fills as often as they are label text. Rust is deliberately
+   * absent: it is the accent, and a destructive action must not look like
+   * somebody's tag group.
+   */
+  --color-tag-1: #2f5c96; /* ink blue */
+  --color-tag-2: #5f7d52; /* sage    */
+  --color-tag-3: #7a5a85; /* plum    */
+  --color-tag-4: #8c6d28; /* ochre   */
+  --color-tag-5: #3f7068; /* teal    */
+  --color-tag-6: #9c5560; /* damson  */
+
+  /* A boolean setting that is switched on. Green reads as "enabled" without
+     being taught, and it keeps feature switches from borrowing either the
+     accent (which means destructive) or a tag hue (which would imply the
+     switch belongs to somebody's tag group). */
+  --color-on: #4f7a46;
+
+  /* Text sitting *on* a hue-filled chip. It cannot just be paper: the light
+     hues are dark and the dark hues are light, so this flips with the theme
+     while the hues themselves stay recognisably the same colour. */
+  --color-on-tag: #faf8f3;
 
   /* Old-style serif for anything that wants to read as print, and a neutral
      sans that gets out of the way for everything else — the cookbook pairing. */
@@ -54,5 +86,17 @@
     --color-rule: #35312c;
     --color-sunken: #191714;
     --color-accent: #e8916b;
+
+    /* Lightened and drained of some colour so they glow on the dark ground
+       instead of glaring, following cookbook's night set. Paper-coloured
+       text no longer works on these, so a selected chip flips to ink. */
+    --color-tag-1: #8fb6f2;
+    --color-tag-2: #93c88c;
+    --color-tag-3: #c59bd6;
+    --color-tag-4: #d9b45c;
+    --color-tag-5: #79a79b;
+    --color-tag-6: #e0919c;
+    --color-on: #93c88c;
+    --color-on-tag: #191714;
   }
 }

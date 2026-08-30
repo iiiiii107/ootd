@@ -219,7 +219,16 @@ function NewGroupForm({ onDone }: { onDone: () => void }) {
         type="button"
         onClick={() => setMultiSelect(!multiSelect)}
         aria-pressed={multiSelect}
-        className={`rounded-chip min-h-8 w-fit border px-2.5 text-[11px] ${multiSelect ? 'border-ink bg-ink text-paper' : 'border-rule text-muted'}`}
+        className="rounded-chip min-h-8 w-fit border px-2.5 text-[11px]"
+        style={
+          multiSelect
+            ? {
+                backgroundColor: 'var(--color-on)',
+                borderColor: 'var(--color-on)',
+                color: 'var(--color-on-tag)',
+              }
+            : { borderColor: 'var(--color-rule)', color: 'var(--color-muted)' }
+        }
       >
         {multiSelect ? 'items can have several values' : 'items can only have one value'}
       </button>

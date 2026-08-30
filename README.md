@@ -33,7 +33,9 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 
 Also from that run: **Discard** in the crop step, so a wrong photo is never saved in the first place, and a **Done** button to end an import session on.
 
-**Design pass, family edition.** ootd now shares its visual language with 10 minutes to spare, calendar to spare and cookbook: the warm paper-and-ink palette, rust as the one accent, EB Garamond over Inter, and the family's soft radii on every control. The rule the design hangs off is unchanged — the clothes are the only real colour on screen — but the neutrals under them are warm now instead of cool, and the four apps read as one set rather than four unrelated things.
+**Design pass, family edition.** ootd now shares its visual language with 10 minutes to spare, calendar to spare and cookbook: the warm paper-and-ink palette, EB Garamond over Inter, and the family's soft radii on every control.
+
+Colour then took over the work small-caps were doing. Every tag group owns one of six hues and wears it on its label and its selected chips, so season reads differently from formality at a glance instead of both being grey letterspaced capitals. Rust is the accent and means *primary action* or *destructive*, nothing else; green means a switch is on. There are no capitalised labels left anywhere in the app.
 
 Still open: the last of the design pass — type scale and spacing judged against real garments, and calibrating the mask and detection thresholds now that there are real photos to calibrate against.
 

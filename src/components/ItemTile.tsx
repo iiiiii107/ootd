@@ -73,8 +73,13 @@ export function ItemTile({
       {selectMode && (
         <span
           className={`absolute top-1.5 left-1.5 h-4 w-4 border ${
-            selected ? 'border-ink bg-ink' : 'border-paper bg-paper/70'
+            selected ? '' : 'border-paper bg-paper/70'
           }`}
+          style={
+            selected
+              ? { backgroundColor: 'var(--color-on)', borderColor: 'var(--color-on)' }
+              : undefined
+          }
         />
       )}
     </button>

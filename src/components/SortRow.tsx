@@ -39,7 +39,7 @@ export function SortRow({
 }) {
   return (
     <div className="flex flex-col gap-1 border-b border-rule pb-2">
-      <p className="text-[11px] tracking-[0.06em] text-muted uppercase">
+      <p className="text-[12px] text-muted">
         {count} {noun}
         {count === 1 ? '' : 's'}
       </p>
@@ -53,8 +53,8 @@ export function SortRow({
               onClick={() => (active ? onChange(option, !reversed) : onChange(option, false))}
               aria-pressed={active}
               title={active ? 'Tap again to reverse' : undefined}
-              className={`min-h-8 shrink-0 px-2 text-[11px] tracking-[0.04em] whitespace-nowrap uppercase ${
-                active ? 'text-ink underline underline-offset-4' : 'text-muted'
+              className={`min-h-8 shrink-0 px-2 text-[12px] whitespace-nowrap ${
+                active ? 'font-medium text-accent underline underline-offset-4' : 'text-muted'
               }`}
             >
               {active && reversed ? SORT_LABELS[option].reversedLabel : SORT_LABELS[option].label}

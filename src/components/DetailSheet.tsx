@@ -103,7 +103,7 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
 
         {item.memberIds.length > 0 && (
           <div className="flex flex-col gap-1.5">
-            <p className="text-[11px] tracking-[0.08em] text-muted uppercase">Made from</p>
+            <p className="text-[12px] font-medium text-muted">Made from</p>
             <div className="flex gap-2 overflow-x-auto pb-0.5">
               {item.memberIds.map((memberId) => (
                 <MemberThumb key={memberId} id={memberId} onTap={() => setViewingMemberId(memberId)} />
@@ -116,9 +116,16 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
           type="button"
           onClick={() => void toggleWash(item.id)}
           aria-pressed={item.inWash}
-          className={`rounded-chip min-h-8 w-fit border px-2.5 text-[11px] tracking-[0.08em] uppercase ${
-            item.inWash ? 'border-ink bg-ink text-paper' : 'border-rule text-muted'
-          }`}
+          className="rounded-chip min-h-8 w-fit border px-2.5 text-[12px]"
+          style={
+            item.inWash
+              ? {
+                  backgroundColor: 'var(--color-accent)',
+                  borderColor: 'var(--color-accent)',
+                  color: 'var(--color-on-tag)',
+                }
+              : { borderColor: 'var(--color-rule)', color: 'var(--color-muted)' }
+          }
         >
           {item.inWash ? 'in the wash' : 'clean'}
         </button>
@@ -134,7 +141,7 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
 
         {item.location === 'elsewhere' && (
           <div className="flex flex-col gap-1.5">
-            <p className="text-[11px] tracking-[0.08em] text-muted uppercase">Where</p>
+            <p className="text-[12px] font-medium text-muted">Where</p>
             <input
               type="text"
               value={elsewhereNote}
@@ -146,7 +153,7 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
         )}
 
         <div className="flex flex-col gap-1.5">
-          <p className="text-[11px] tracking-[0.08em] text-muted uppercase">Notes</p>
+          <p className="text-[12px] font-medium text-muted">Notes</p>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
