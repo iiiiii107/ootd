@@ -33,7 +33,7 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 
 Also from that run: **Discard** in the crop step, so a wrong photo is never saved in the first place, and a **Done** button to end an import session on.
 
-**Design pass, family edition.** ootd now shares its visual language with 10 minutes to spare, calendar to spare and cookbook: the warm paper-and-ink palette, EB Garamond over Inter, and the family's soft radii on every control.
+**Design pass, family edition.** ootd now shares its visual language with 10 minutes to spare, calendar to spare and cookbook: the beige-and-ink palette, EB Garamond over Inter, and the family's soft radii on every control. The ground is the same beige 10 minutes to spare puts under everything, which is easier to sit with than near-white and which garment cutouts read better against.
 
 **Make it yours.** Settings carries the family's appearance panel, the same one cookbook and the two spare apps have: theme (auto, light, dark), five ready-made palettes, a colour picker for each of the four interface colours *and* each of the six tag hues, a choice of face for headings and body, and how many garments sit across the grid on a phone. Every one of those is written onto `<html>` as a custom property, so nothing else in the app reads a setting to decide how to look — which is what makes any of it a feature rather than a special case in each component.
 

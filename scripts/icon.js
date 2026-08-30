@@ -7,7 +7,7 @@
  * symbol instead, replace `markup()` here and re-run `npm run icons`.
  */
 
-export const PAPER = '#FAF8F3';
+export const PAPER = '#EFE9D8';
 export const INK = '#2B2825';
 
 /**

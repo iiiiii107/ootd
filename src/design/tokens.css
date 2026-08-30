@@ -12,15 +12,35 @@
  */
 
 @theme {
-  /* Paper ground and ink — the family's warm stock, not a cool grey. */
-  --color-paper: #faf8f3;
+  /* Paper ground and ink — the family's warm stock, not a cool grey.
+   *
+   * The ground is 10 minutes to spare's `--page`, the beige it uses for the
+   * desk itself. ootd had that app's `--paper` instead — the near-white of the
+   * card laid *on* the desk — which is the right choice in an app that layers
+   * cards on a surface and the wrong one here, where there is a single flat
+   * ground and it is most of what you look at. Beige is easier to sit with,
+   * and garment cutouts read better against it than against near-white.
+   *
+   * Muted is darker than the family's, deliberately. The beige is ~12% less
+   * luminous than the cream it replaced, which drags every contrast ratio down
+   * with it; at the old value muted fell to 3.3:1 against this ground, and it
+   * is set at 12–13px where 4.5:1 is the bar. This clears it.
+   */
+  --color-paper: #efe9d8;
   --color-ink: #2b2825;
-  --color-muted: #857d73;
+  --color-muted: #6e6757;
 
   /* Hairline rules — never a shadow, never a gradient. Translucent ink rather
-     than a flat grey, so a rule sits *on* the paper instead of beside it. */
-  --color-rule: #e8e2d6;
-  --color-sunken: #f2eee5;
+     than a flat grey, so a rule sits *on* the paper instead of beside it, and
+     so one hairline works over both the ground and the sunken band. The flat
+     grey this used to be was mixed for the old near-white and would have all
+     but vanished against the beige.
+
+     The sunken band has to be *darker* than the ground to read as recessed;
+     it used to be lighter, which only worked because the ground was lighter
+     still. This is the family's own `--band`. */
+  --color-rule: rgba(48, 46, 40, 0.14);
+  --color-sunken: #e4dbbf;
 
   /* The one accent: rust, shared with the spare apps. Reserved for
      destructive actions and the in-wash marker — never decorative. */

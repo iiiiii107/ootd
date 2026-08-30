@@ -241,7 +241,7 @@ Manage tag groups · **Export backup** · **Import backup** · storage used · a
 
 Minimal but fashionable, meaning: the clothes are the only colour on screen.
 
-- Warm paper background `#FAF8F3`, warm near-black text `#2B2825`, warm grey `#857D73` for secondary. Colour now carries meaning rather than decoration, and it is what tells one thing from another — the job small-caps and letterspacing were doing badly:
+- Beige ground `#EFE9D8`, warm near-black text `#2B2825`, warm grey `#6E6757` for secondary. The ground is 10 minutes to spare's `--page` — the desk itself — rather than its `--paper`, the near-white card laid on the desk. ootd had the card colour, which suits an app that layers cards on a surface and not one with a single flat ground that is most of what you look at. The secondary grey is darker than the family's: the beige is ~12% less luminous than the near-white it replaced, and at the inherited value secondary text fell to 3.3:1 against it, below the 4.5:1 its size calls for. Colour now carries meaning rather than decoration, and it is what tells one thing from another — the job small-caps and letterspacing were doing badly:
 
   - **Six tag hues.** Every tag group owns one, and it is the group's identity everywhere it appears: its label, and the fill of its selected chips. Custom groups cycle through the list. Season is sage, formality plum, location ochre, and so on.
   - **Rust `#B8714C` is the accent**, and means one of two things only: a primary action (shuffle, save, done) or something destructive/attention-wanting (delete, discard, the in-wash marker). Never decorative, and deliberately absent from the tag hues so a delete button can never look like somebody's tag group.
