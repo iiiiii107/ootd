@@ -2,10 +2,30 @@ import { useEffect, useRef, useState } from 'react';
 
 import { ScreenTitle } from '../components/ScreenTitle';
 import { TagGroupManager } from '../components/TagGroupManager';
+import { updateAppearance } from '../db/appearance';
 import { exportBackup, importBackup } from '../db/backup';
-import { useArchivedItems, useAutoDetectEnabled, useCutoutEnabled, useTrashedItems } from '../db/hooks';
+import {
+  useAppearance,
+  useArchivedItems,
+  useAutoDetectEnabled,
+  useCutoutEnabled,
+  useTrashedItems,
+} from '../db/hooks';
 import { archiveItem, deleteEverything, emptyTrash, hardDeleteItem, restoreItem } from '../db/items';
 import { setMeta } from '../db/meta';
+import {
+  currentColour,
+  DENSITIES,
+  FACE_LABELS,
+  FACES,
+  PALETTE_KEYS,
+  paletteKeyFor,
+  PRESETS,
+  resolveScheme,
+  TAG_KEYS,
+  type Appearance,
+  type FaceId,
+} from '../design/theme';
 import { useObjectUrl } from '../lib/useObjectUrl';
 
 /**
@@ -19,6 +39,7 @@ export default function Settings() {
     <div className="flex flex-col gap-8 px-4 pb-16">
       <ScreenTitle>settings</ScreenTitle>
 
+      <AppearanceSection />
       <StorageSection />
       <CutoutSection />
       <BackupSection />
@@ -100,6 +121,169 @@ function CutoutSection() {
           : 'With both off, no model is downloaded at all.'}
       </p>
     </Section>
+  );
+}
+
+/**
+ * Appearance (the family's own settings pattern, shared with cookbook and the
+ * two spare apps): every choice here is written onto `<html>` as a custom
+ * property or a data attribute, and nothing in the app reads these settings
+ * for styling. That is what makes "pick your own colours" one small module
+ * rather than a special case in every component — any token can be overridden
+ * and every rule using it follows, including ones written later.
+ */
+function AppearanceSection() {
+  const appearance = useAppearance();
+  const set = (patch: Partial<Appearance>) => void updateAppearance(patch);
+
+  // Colours are stored per scheme, so the swatches edit whichever one is
+  // actually on screen. Editing in the dark and having a daylight colour
+  // change instead would be indistinguishable from the control being broken.
+  const key = paletteKeyFor(appearance.theme);
+  const palette = appearance[key];
+  const scheme = resolveScheme(appearance.theme);
+
+  const swatches = (keys: readonly { id: string; label: string; hint?: string }[]) => (
+    <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+      {keys.map(({ id, label, hint }) => (
+        <label key={id} className="flex min-h-11 items-center gap-2.5 text-[13px] text-ink">
+          <input
+            type="color"
+            aria-label={label}
+            value={palette[id] ?? currentColour(id)}
+            onChange={(e) => set({ [key]: { ...palette, [id]: e.target.value } })}
+            className="h-7 w-7 shrink-0 cursor-pointer rounded-full border border-rule bg-transparent p-0"
+          />
+          <span className="min-w-0">
+            {label}
+            {hint && <span className="block text-[11px] text-muted">{hint}</span>}
+          </span>
+        </label>
+      ))}
+    </div>
+  );
+
+  return (
+    <Section title="Appearance">
+      <Segmented
+        label="Theme"
+        options={[
+          { id: 'system', label: 'Auto' },
+          { id: 'light', label: 'Light' },
+          { id: 'dark', label: 'Dark' },
+        ]}
+        value={appearance.theme}
+        onChange={(id) => set({ theme: id as Appearance['theme'] })}
+      />
+      <p className="text-[12px] leading-relaxed text-muted">
+        Auto follows your phone. The other two override it, so a light wardrobe stays light on a
+        phone that has gone dark for the evening.
+      </p>
+
+      <p className="pt-1 text-[12px] leading-relaxed text-muted">
+        A palette sets both a daylight and a night version, so a choice made now still reads when
+        the phone goes dark. The swatches below edit the {scheme === 'dark' ? 'night' : 'daylight'}{' '}
+        one, which is the set you are looking at.
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {Object.entries(PRESETS).map(([id, preset]) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => set({ palette: { ...preset.light }, paletteDark: { ...preset.dark } })}
+            className="rounded-chip min-h-9 border border-rule px-3 text-[12px] text-ink"
+          >
+            {preset.label}
+          </button>
+        ))}
+      </div>
+      {swatches(PALETTE_KEYS)}
+
+      <p className="pt-1 text-[12px] leading-relaxed text-muted">
+        The six colours a tag group can own. A group wears its colour on its label and on the chips
+        you have selected, which is what tells season from formality at a glance.
+      </p>
+      {swatches(TAG_KEYS)}
+
+      <button
+        type="button"
+        onClick={() => set({ palette: {}, paletteDark: {} })}
+        className="min-h-9 w-fit text-[12px] text-muted underline underline-offset-4"
+      >
+        Back to the original colours
+      </button>
+
+      <Segmented
+        label="Headings"
+        options={faceOptions()}
+        value={appearance.fontDisplay}
+        onChange={(id) => set({ fontDisplay: id as FaceId })}
+      />
+      <Segmented
+        label="Body"
+        options={faceOptions()}
+        value={appearance.fontBody}
+        onChange={(id) => set({ fontBody: id as FaceId })}
+      />
+      <Segmented
+        label="Garment size"
+        options={DENSITIES.map((d) => ({ id: String(d.id), label: d.label }))}
+        value={String(appearance.density)}
+        onChange={(id) => set({ density: Number(id) })}
+      />
+      <p className="text-[12px] leading-relaxed text-muted">
+        How many garments sit across the wardrobe grid on a phone. On a wider screen the screen
+        decides instead.
+      </p>
+    </Section>
+  );
+}
+
+function faceOptions() {
+  return (Object.keys(FACES) as FaceId[]).map((id) => ({ id, label: FACE_LABELS[id] }));
+}
+
+/** One row of mutually exclusive choices — the shape every appearance control takes. */
+function Segmented({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { id: string; label: string }[];
+  value: string;
+  onChange: (id: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <p className="text-[12px] font-medium text-muted">{label}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((option) => {
+          const active = option.id === value;
+          return (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => onChange(option.id)}
+              aria-pressed={active}
+              className="rounded-chip min-h-9 border px-3 text-[13px]"
+              style={
+                active
+                  ? {
+                      backgroundColor: 'var(--color-on)',
+                      borderColor: 'var(--color-on)',
+                      color: 'var(--color-on-tag)',
+                    }
+                  : { borderColor: 'var(--color-rule)', color: 'var(--color-ink)' }
+              }
+            >
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

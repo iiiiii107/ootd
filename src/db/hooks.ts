@@ -1,5 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 
+import { DEFAULT_APPEARANCE, type Appearance } from '../design/theme';
+import { APPEARANCE_KEY } from './appearance';
 import { db } from './schema';
 import type { CustomTag, Item } from './types';
 
@@ -137,4 +139,17 @@ export function useNeedsBackup(): boolean {
     return newItemCount > 0;
   }, []);
   return result ?? false;
+}
+
+/**
+ * The stored appearance, live. Everything visual it controls is already on
+ * the document by the time this resolves (see `bootAppearance`), so this is
+ * for the Settings screen's own controls rather than for styling anything.
+ */
+export function useAppearance(): Appearance {
+  const value = useLiveQuery(async () => {
+    const entry = await db.meta.get(APPEARANCE_KEY);
+    return { ...DEFAULT_APPEARANCE, ...(entry?.value as Partial<Appearance> | undefined) };
+  }, []);
+  return value ?? DEFAULT_APPEARANCE;
 }

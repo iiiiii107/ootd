@@ -78,18 +78,22 @@
  * warm off-white rather than pure white, and the accent is lightened and
  * drained of some colour so it glows instead of glaring.
  */
+/* Night.
+ *
+ * Declared twice on purpose. The media query is the default — follow the
+ * phone — but it is guarded so that someone who has explicitly chosen light
+ * in Settings keeps it on a device that is in dark mode. The attribute rule
+ * then covers the opposite choice: dark on a device that is in light mode.
+ * Neither rule alone gives a working toggle in both directions.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme='light']) {
     --color-paper: #201e1b;
     --color-ink: #e6e1d8;
     --color-muted: #948c81;
     --color-rule: #35312c;
     --color-sunken: #191714;
     --color-accent: #e8916b;
-
-    /* Lightened and drained of some colour so they glow on the dark ground
-       instead of glaring, following cookbook's night set. Paper-coloured
-       text no longer works on these, so a selected chip flips to ink. */
     --color-tag-1: #8fb6f2;
     --color-tag-2: #93c88c;
     --color-tag-3: #c59bd6;
@@ -100,3 +104,21 @@
     --color-on-tag: #191714;
   }
 }
+
+:root[data-theme='dark'] {
+    --color-paper: #201e1b;
+    --color-ink: #e6e1d8;
+    --color-muted: #948c81;
+    --color-rule: #35312c;
+    --color-sunken: #191714;
+    --color-accent: #e8916b;
+    --color-tag-1: #8fb6f2;
+    --color-tag-2: #93c88c;
+    --color-tag-3: #c59bd6;
+    --color-tag-4: #d9b45c;
+    --color-tag-5: #79a79b;
+    --color-tag-6: #e0919c;
+    --color-on: #93c88c;
+    --color-on-tag: #191714;
+}
+

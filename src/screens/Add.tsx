@@ -253,7 +253,7 @@ function PickerButton({
   accept: string;
 }) {
   return (
-    <label className="flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-chip border border-rule text-[13px] tracking-wide text-ink">
+    <label className="pressable flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-chip border border-rule text-[13px] tracking-wide text-ink">
       {label}
       <input
         type="file"

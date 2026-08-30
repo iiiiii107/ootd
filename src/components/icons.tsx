@@ -104,3 +104,21 @@ export function GearIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+/** The way back out of Settings, which is not one of the four tabs. */
+export function BackIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden="true"
+    >
+      <polyline points="11.5,4 5.5,10 11.5,16" />
+    </svg>
+  );
+}
