@@ -1,14 +1,14 @@
 /**
  * The ootd app icon, as one file.
  *
- * Locked default (spec §8): lowercase `ootd` wordmark in Sniglet at its bold
- * (800) weight — the bubble-letter look the app now uses throughout — near-
- * black on the off-white paper ground, generous margin. If you ever want a
- * drawn symbol instead, replace `markup()` here and re-run `npm run icons`.
+ * Locked default (spec §8): lowercase `ootd` wordmark in EB Garamond at its
+ * semibold (600) weight — the old-style serif shared with cookbook — warm ink
+ * on the family's paper ground, generous margin. If you ever want a drawn
+ * symbol instead, replace `markup()` here and re-run `npm run icons`.
  */
 
-export const PAPER = '#FAF9F7';
-export const INK = '#1A1A1A';
+export const PAPER = '#FAF8F3';
+export const INK = '#2B2825';
 
 /**
  * @param {number} size      canvas edge in px
@@ -19,16 +19,18 @@ export const INK = '#1A1A1A';
  * @param {string} ink       wordmark fill
  */
 export function markup({ size, inset = 0.62, ground = PAPER, ink = INK }) {
-  // Sniglet Bold's lowercase `ootd` measures ~2.55em wide before tracking —
-  // its round bubble letters are considerably wider-set than Playfair's.
-  const tracking = 0.08;
-  const advance = 2.55 + tracking * 4;
+  // EB Garamond Semibold's lowercase `ootd` measures ~1.95em wide before
+  // tracking — an old-style serif is set considerably tighter than Sniglet's
+  // round bubble letters were, so it needs more tracking and a larger em to
+  // fill the same box.
+  const tracking = 0.1;
+  const advance = 1.95 + tracking * 4;
   const fontSize = (size * inset) / advance;
   const letterSpacing = fontSize * tracking;
-  // `central` centres on the x-height band. Sniglet's letters sit fairly
-  // evenly around it already, so only a small lift is needed for the `d`
-  // ascender and `o`/`t` bowls to look centred rather than low.
-  const opticalLift = fontSize * 0.03;
+  // `central` centres on the x-height band. Garamond has a small x-height and a
+  // tall `d` ascender, so the optical centre sits meaningfully above the band —
+  // a larger lift than the bubble face needed.
+  const opticalLift = fontSize * 0.09;
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
   <rect width="${size}" height="${size}" fill="${ground}"/>
@@ -36,8 +38,8 @@ export function markup({ size, inset = 0.62, ground = PAPER, ink = INK }) {
     x="${size / 2 - letterSpacing / 2}"
     y="${size / 2 - opticalLift}"
     fill="${ink}"
-    font-family="Sniglet"
-    font-weight="800"
+    font-family="EB Garamond"
+    font-weight="600"
     font-size="${fontSize}"
     letter-spacing="${letterSpacing}"
     text-anchor="middle"

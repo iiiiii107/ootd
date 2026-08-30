@@ -146,14 +146,14 @@ export function CropStep({
           <button
             type="button"
             onClick={onDiscard}
-            className="min-h-12 flex-1 border border-rule text-[14px] tracking-wide text-accent"
+            className="min-h-12 flex-1 rounded-chip border border-rule text-[14px] tracking-wide text-accent"
           >
             Discard
           </button>
           <button
             type="button"
             onClick={() => onConfirm(rect)}
-            className="min-h-12 flex-[2] border border-ink bg-ink text-[14px] tracking-wide text-paper"
+            className="min-h-12 flex-[2] rounded-chip border border-ink bg-ink text-[14px] tracking-wide text-paper"
           >
             {index + 1 < total ? 'Next photo' : 'Save'}
           </button>

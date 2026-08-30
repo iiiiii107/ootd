@@ -174,7 +174,7 @@ export default function Randomizer() {
                 type="button"
                 onClick={() => setFilters({ ...filters, [key]: !active })}
                 aria-pressed={active}
-                className={`min-h-8 shrink-0 border px-2.5 text-[12px] tracking-[0.02em] ${
+                className={`rounded-chip min-h-8 shrink-0 border px-2.5 text-[12px] tracking-[0.02em] ${
                   active ? 'border-ink bg-ink text-paper' : 'border-rule text-muted'
                 }`}
               >
@@ -188,7 +188,7 @@ export default function Randomizer() {
       <button
         type="button"
         onClick={shuffle}
-        className="min-h-14 border border-ink text-[15px] tracking-[0.06em] text-ink uppercase"
+        className="min-h-14 rounded-chip border border-ink text-[15px] tracking-[0.06em] text-ink uppercase"
       >
         {result ? 'reshuffle' : 'shuffle'}
       </button>
@@ -214,14 +214,14 @@ export default function Randomizer() {
             <button
               type="button"
               onClick={() => void handleFavoriteBoth()}
-              className="min-h-11 flex-1 border border-rule text-[13px] text-ink"
+              className="min-h-11 flex-1 rounded-chip border border-rule text-[13px] text-ink"
             >
               ♡ favorite
             </button>
             <button
               type="button"
               onClick={() => void handleWearingToday()}
-              className="min-h-11 flex-1 border border-rule text-[13px] text-ink"
+              className="min-h-11 flex-1 rounded-chip border border-rule text-[13px] text-ink"
             >
               wearing this today
             </button>
@@ -229,7 +229,7 @@ export default function Randomizer() {
               type="button"
               onClick={() => void handleSaveAsOutfit()}
               disabled={isSaving || !!savedOutfitId}
-              className="min-h-11 flex-1 border border-rule text-[13px] text-ink disabled:opacity-50"
+              className="min-h-11 flex-1 rounded-chip border border-rule text-[13px] text-ink disabled:opacity-50"
             >
               {savedOutfitId ? 'saved ✓' : isSaving ? 'saving…' : 'save as outfit'}
             </button>
@@ -255,7 +255,7 @@ function ResultCard({
 }) {
   const url = useItemImageUrl(item.id, item.thumb);
   return (
-    <div className="relative border border-rule">
+    <div className="relative rounded-chip border border-rule">
       <div className="aspect-square bg-paper">
         {url && <img src={url} alt={item.name} className="h-full w-full object-cover" />}
       </div>
@@ -265,7 +265,7 @@ function ResultCard({
           onClick={onToggleLock}
           aria-pressed={locked}
           aria-label={locked ? `Unlock the ${label}` : `Lock the ${label}`}
-          className={`absolute top-2 right-2 flex h-9 w-9 items-center justify-center border ${
+          className={`rounded-chip absolute top-2 right-2 flex h-9 w-9 items-center justify-center border ${
             locked ? 'border-ink bg-ink text-paper' : 'border-rule bg-paper/85 text-ink'
           }`}
         >
@@ -335,7 +335,7 @@ function EmptyResult({
               key={chip.label}
               type="button"
               onClick={chip.clear}
-              className="min-h-8 border border-rule px-2.5 text-[11px] tracking-[0.04em] text-ink"
+              className="min-h-8 rounded-chip border border-rule px-2.5 text-[11px] tracking-[0.04em] text-ink"
             >
               {chip.label} ×
             </button>

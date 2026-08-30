@@ -1,43 +1,58 @@
 /**
  * Design tokens (spec §8).
  *
- * The rule the whole visual design hangs off: the clothes are the only colour
- * on screen. Everything here is greyscale except one restrained accent,
- * reserved for interactive and selected states.
+ * The rule the whole visual design hangs off is unchanged: the clothes are the
+ * only colour on screen. Everything here is near-neutral except one restrained
+ * accent, reserved for interactive and selected states.
+ *
+ * What changed is *which* neutrals. They were cool greys; they are now the warm
+ * paper and ink shared with 10 minutes to spare, calendar to spare and cookbook,
+ * so the four apps read as one family. Same discipline, same restraint — a
+ * warmer ground under it, and rust as the one accent, matching the spare apps.
  */
 
 @theme {
-  /* Paper ground and ink. */
-  --color-paper: #faf9f7;
-  --color-ink: #1a1a1a;
-  --color-muted: #8a8681;
+  /* Paper ground and ink — the family's warm stock, not a cool grey. */
+  --color-paper: #faf8f3;
+  --color-ink: #2b2825;
+  --color-muted: #857d73;
 
-  /* Hairline rules — never a shadow, never a gradient. */
-  --color-rule: #e4e1dc;
-  --color-sunken: #f2f0ec;
+  /* Hairline rules — never a shadow, never a gradient. Translucent ink rather
+     than a flat grey, so a rule sits *on* the paper instead of beside it. */
+  --color-rule: #e8e2d6;
+  --color-sunken: #f2eee5;
 
-  /* The one accent. */
-  --color-accent: #6b5f52;
+  /* The one accent: rust, shared with the spare apps. */
+  --color-accent: #b8714c;
 
-  /* Bubble-letter display face for the wordmark and screen titles. */
-  --font-display: 'Sniglet', 'Comic Sans MS', cursive, sans-serif;
-  /* Same cartoon family, but holds up at 12px — everything else reads in this. */
-  --font-sans: 'Comic Neue', 'Comic Sans MS', cursive, sans-serif;
+  /* Old-style serif for anything that wants to read as print, and a neutral
+     sans that gets out of the way for everything else — the cookbook pairing. */
+  --font-display: 'EB Garamond', 'Iowan Old Style', Georgia, serif;
+  --font-sans: 'Inter', -apple-system, 'Segoe UI', 'Helvetica Neue', sans-serif;
+
+  /* Soft radii, family-standard. Deliberately small: the grid tiles stay square
+     so the garments meet edge to edge, and only controls take a corner. */
+  --radius-card: 10px;
+  --radius-chip: 6px;
 }
 
 /**
- * Dark mode: inverted, warm black. Tailwind v4 emits the tokens above as
- * custom properties on :root and its utilities read them through var(), so
+ * Dark mode: warm night, not an inversion. Tailwind v4 emits the tokens above
+ * as custom properties on :root and its utilities read them through var(), so
  * redefining the values here reskins every utility without a `dark:` variant
  * on each element.
+ *
+ * Values follow cookbook's night set: the ground goes deep and warm, ink is a
+ * warm off-white rather than pure white, and the accent is lightened and
+ * drained of some colour so it glows instead of glaring.
  */
 @media (prefers-color-scheme: dark) {
   :root {
-    --color-paper: #141312;
-    --color-ink: #f2f0ec;
-    --color-muted: #8a8681;
-    --color-rule: #2c2a27;
-    --color-sunken: #1f1d1b;
-    --color-accent: #c4b5a2;
+    --color-paper: #201e1b;
+    --color-ink: #e6e1d8;
+    --color-muted: #948c81;
+    --color-rule: #35312c;
+    --color-sunken: #191714;
+    --color-accent: #e8916b;
   }
 }

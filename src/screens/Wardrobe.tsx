@@ -255,7 +255,7 @@ function EmptyFilterState({
               key={chip.label}
               type="button"
               onClick={chip.clear}
-              className="min-h-8 border border-rule px-2.5 text-[11px] tracking-[0.04em] text-ink uppercase"
+              className="min-h-8 rounded-chip border border-rule px-2.5 text-[11px] tracking-[0.04em] text-ink uppercase"
             >
               {chip.label} ×
             </button>

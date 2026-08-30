@@ -116,7 +116,7 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
           type="button"
           onClick={() => void toggleWash(item.id)}
           aria-pressed={item.inWash}
-          className={`min-h-8 w-fit border px-2.5 text-[11px] tracking-[0.08em] uppercase ${
+          className={`rounded-chip min-h-8 w-fit border px-2.5 text-[11px] tracking-[0.08em] uppercase ${
             item.inWash ? 'border-ink bg-ink text-paper' : 'border-rule text-muted'
           }`}
         >
@@ -151,7 +151,7 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={3}
-            className="border border-rule bg-transparent p-2 text-[14px] text-ink outline-none focus:border-ink"
+            className="rounded-chip border border-rule bg-transparent p-2 text-[14px] text-ink outline-none focus:border-ink"
           />
         </div>
 
@@ -159,7 +159,7 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
           <button
             type="button"
             onClick={() => void markWornToday([item.id, ...item.memberIds])}
-            className="min-h-11 border border-ink text-[13px] tracking-wide text-ink"
+            className="min-h-11 rounded-chip border border-ink text-[13px] tracking-wide text-ink"
           >
             {wornToday(item.lastWornAt) ? 'Worn today ✓' : 'I wore this'}
           </button>
@@ -173,14 +173,14 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
           <button
             type="button"
             onClick={() => void archiveItem(item.id, !item.archived)}
-            className="min-h-11 flex-1 border border-rule text-[13px] tracking-wide text-ink"
+            className="min-h-11 flex-1 rounded-chip border border-rule text-[13px] tracking-wide text-ink"
           >
             {item.archived ? 'Unarchive' : 'Archive'}
           </button>
           <button
             type="button"
             onClick={() => void handleDelete()}
-            className="min-h-11 flex-1 border border-rule text-[13px] tracking-wide text-accent"
+            className="min-h-11 flex-1 rounded-chip border border-rule text-[13px] tracking-wide text-accent"
           >
             Delete
           </button>

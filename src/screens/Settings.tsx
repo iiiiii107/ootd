@@ -37,7 +37,7 @@ export default function Settings() {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-[13px] font-bold tracking-[0.04em] text-ink uppercase">{title}</h2>
+      <h2 className="text-[13px] font-medium tracking-[0.08em] text-ink uppercase">{title}</h2>
       {children}
     </section>
   );
@@ -119,7 +119,7 @@ function Toggle({
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={`min-h-11 w-fit border px-3 text-[13px] ${
+      className={`rounded-chip min-h-11 w-fit border px-3 text-[13px] ${
         on ? 'border-ink bg-ink text-paper' : 'border-rule text-ink'
       }`}
     >
@@ -166,13 +166,13 @@ function BackupSection() {
         safe — re-photographing everything is not a fun afternoon.
       </p>
       <div className="flex gap-3">
-        <button type="button" onClick={() => void handleExport()} className="min-h-11 flex-1 border border-ink text-[13px] text-ink">
+        <button type="button" onClick={() => void handleExport()} className="min-h-11 flex-1 rounded-chip border border-ink text-[13px] text-ink">
           Export backup
         </button>
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="min-h-11 flex-1 border border-rule text-[13px] text-ink"
+          className="min-h-11 flex-1 rounded-chip border border-rule text-[13px] text-ink"
         >
           Import backup
         </button>
@@ -203,13 +203,13 @@ function ArchivedSection() {
       ) : (
         <ul className="flex flex-col gap-2">
           {items.map((item) => (
-            <li key={item.id} className="flex items-center gap-3 border border-rule p-2">
+            <li key={item.id} className="flex items-center gap-3 rounded-chip border border-rule p-2">
               <MiniThumb blob={item.thumb} name={item.name} />
               <p className="flex-1 truncate text-[13px] text-ink">{item.name}</p>
               <button
                 type="button"
                 onClick={() => void archiveItem(item.id, false)}
-                className="min-h-9 border border-rule px-2.5 text-[11px] text-ink"
+                className="min-h-9 rounded-chip border border-rule px-2.5 text-[11px] text-ink"
               >
                 unarchive
               </button>
@@ -242,20 +242,20 @@ function TrashSection() {
         <>
           <ul className="flex flex-col gap-2">
             {items.map((item) => (
-              <li key={item.id} className="flex items-center gap-3 border border-rule p-2">
+              <li key={item.id} className="flex items-center gap-3 rounded-chip border border-rule p-2">
                 <MiniThumb blob={item.thumb} name={item.name} />
                 <p className="flex-1 truncate text-[13px] text-ink">{item.name}</p>
                 <button
                   type="button"
                   onClick={() => void restoreItem(item.id)}
-                  className="min-h-9 border border-rule px-2.5 text-[11px] text-ink"
+                  className="min-h-9 rounded-chip border border-rule px-2.5 text-[11px] text-ink"
                 >
                   restore
                 </button>
                 <button
                   type="button"
                   onClick={() => void handleDeleteNow(item.id, item.name)}
-                  className="min-h-9 border border-rule px-2.5 text-[11px] text-accent"
+                  className="min-h-9 rounded-chip border border-rule px-2.5 text-[11px] text-accent"
                 >
                   delete now
                 </button>
@@ -297,7 +297,7 @@ function DangerZone() {
           type="button"
           disabled={confirmText !== 'DELETE'}
           onClick={() => void handleDeleteEverything()}
-          className="min-h-11 border border-accent px-3 text-[13px] text-accent disabled:opacity-40"
+          className="min-h-11 rounded-chip border border-accent px-3 text-[13px] text-accent disabled:opacity-40"
         >
           Delete everything
         </button>

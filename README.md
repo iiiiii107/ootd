@@ -33,6 +33,8 @@ The full specification is in [`docs/SPEC.md`](docs/SPEC.md) — it is the source
 
 Also from that run: **Discard** in the crop step, so a wrong photo is never saved in the first place, and a **Done** button to end an import session on.
 
+**Design pass, family edition.** ootd now shares its visual language with 10 minutes to spare, calendar to spare and cookbook: the warm paper-and-ink palette, rust as the one accent, EB Garamond over Inter, and the family's soft radii on every control. The rule the design hangs off is unchanged — the clothes are the only real colour on screen — but the neutrals under them are warm now instead of cool, and the four apps read as one set rather than four unrelated things.
+
 Still open: the last of the design pass — type scale and spacing judged against real garments, and calibrating the mask and detection thresholds now that there are real photos to calibrate against.
 
 | Phase | What it adds | State |
@@ -68,8 +70,10 @@ npm run dev
 The phone needs a real HTTPS URL — home-screen install and service workers do not work over a plain local network address. So it has to be deployed, even though nothing about the app is online.
 
 1. Create a GitHub repo and push this directory to it.
-2. On [netlify.com](https://netlify.com), sign in **with GitHub** and pick the repo. `netlify.toml` already sets the build command, the publish directory, and the SPA redirect, so the defaults are correct.
-3. Every push now deploys automatically to something like `ootd-isi.netlify.app`.
+2. In the repo's **Settings → Pages**, set the source to **GitHub Actions**. Leave the custom domain field empty — a project repo gets `https://<user>.github.io/ootd/` for free.
+3. Every push to `main` now builds and deploys automatically via `.github/workflows/deploy.yml`.
+
+`vite.config.ts` sets `base: '/ootd/'` for this, and the app already uses a hash router, so there is no SPA-redirect rule to get wrong.
 
 Then, on the iPhone: open the URL in **Safari** → Share icon → **Add to Home Screen** → name it `ootd` → open the new icon. (Chrome on iOS can install too, but Safari is the path with no surprises — and either way the installed app runs on WebKit.)
 
@@ -83,7 +87,7 @@ Installed home-screen apps are also exempt from iOS clearing unused site data af
 
 ## The icon
 
-`scripts/icon.js` is the whole icon — a lowercase `ootd` wordmark in Sniglet Bold on the paper ground. `npm run icons` re-renders every size into `public/icons/`, reading the font straight out of the copy the app itself ships, so the icon and the in-app wordmark cannot drift apart. Swapping in a drawn symbol later means editing that one file.
+`scripts/icon.js` is the whole icon — a lowercase `ootd` wordmark in EB Garamond Semibold on the paper ground. `npm run icons` re-renders every size into `public/icons/`, reading the font straight out of the copy the app itself ships, so the icon and the in-app wordmark cannot drift apart. Swapping in a drawn symbol later means editing that one file.
 
 The generated PNGs are committed, so a build or a deploy never runs the generator.
 

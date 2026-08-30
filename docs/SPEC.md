@@ -241,8 +241,8 @@ Manage tag groups · **Export backup** · **Import backup** · storage used · a
 
 Minimal but fashionable, meaning: the clothes are the only colour on screen.
 
-- Paper off-white background `#FAF9F7`, near-black text `#1A1A1A`, mid-grey `#8A8681` for secondary. One restrained accent for interactive/selected states. Everything else greyscale.
-- Typography does the fashion work: **Sniglet** (bold, 800) for the `ootd` wordmark and screen titles — a bubble-letter, Comic-Sans-family display face; **Comic Neue** for all UI, the same cartoon family but legible down to chip and caption sizes. Lowercase wordmark, wide letterspacing. *(Revised from the original editorial-serif direction — the user asked for a black-and-white, cartoon-ish vibe after seeing Phase 0/1 running. Both fonts are self-hosted via `@fontsource`, same offline guarantee as before.)*
+- Warm paper background `#FAF8F3`, warm near-black text `#2B2825`, warm grey `#857D73` for secondary. One restrained accent — rust `#B8714C` — for destructive actions and the in-wash marker. Everything else near-neutral. *(Revised: the palette now matches 10 minutes to spare, calendar to spare and cookbook, so the four apps read as one family. The discipline is unchanged — the clothes are still the only real colour on screen — but the neutrals are warm rather than cool.)*
+- Typography does the fashion work: **EB Garamond** (semibold, 600) for the `ootd` wordmark and screen titles — a dry old-style serif that reads as print; **Inter** for all UI, neutral enough to get out of the way at chip and caption sizes. Lowercase wordmark, wide letterspacing. Two weights per face and no more. *(Revised twice: first from an editorial serif to the bubble-letter Sniglet/Comic Neue pairing, then back to this — the cookbook pairing — so ootd sits in the same family as the user's other apps. Both fonts are self-hosted via `@fontsource`, same offline guarantee throughout.)*
 - No drop shadows, no gradients, no rounded-everything. Hairline rules, generous whitespace, images edge-to-edge in the grid.
 - Cutouts make the grid read as a lookbook rather than a camera roll — this is why background removal earns its complexity. **Revised in Phase 6.5:** cutouts keep their transparency instead of being flattened onto flat white, so a garment sits directly on the app's own paper ground wherever it appears. Stored as WebP-with-alpha where the browser can encode it, PNG otherwise — a PNG-only pipeline would blow the ~250KB/item storage budget in §11.
 - **Masks are hardened before storage** (`cleanMask`, a two-point alpha ramp). Flattening onto white hid the model's low-alpha haze; transparency does not, and against the dark-mode ground that haze reads as white speckle around the garment. **The ramp's thresholds are deliberately conservative and are on the list for the photo-dependent design pass** — they were set against synthetic test swatches, which are pathological input for a salient-object model, and want re-tuning against real garment photos before being trusted.
@@ -251,7 +251,7 @@ Minimal but fashionable, meaning: the clothes are the only colour on screen.
 - Dark mode: inverted, warm black.
 - 44px minimum tap targets; respect `env(safe-area-inset-*)` so nothing hides under the iPhone home bar.
 
-**App icon — build it.** *Locked default:* lowercase `ootd` wordmark in Sniglet Bold, near-black on the off-white paper ground, generous margin, plus a `maskable` variant with extra padding. Export 192/512/1024 PNG + `apple-touch-icon`. If the user later wants a drawn symbol instead, it is a single-file swap.
+**App icon — build it.** *Locked default:* lowercase `ootd` wordmark in EB Garamond Semibold, warm near-black on the warm paper ground, generous margin, plus a `maskable` variant with extra padding. Export 192/512/1024 PNG + `apple-touch-icon`. If the user later wants a drawn symbol instead, it is a single-file swap.
 
 ---
 
@@ -376,7 +376,7 @@ Every item below has a working default. Do not block on them.
 | 5 | Do outfits carry the full tag set? | Yes; composites inherit from members at save time |
 | 6 | Accessory (`other`) in the randomizer | Toggle, off by default |
 | 7 | Backup reminder cadence | 30 days since last backup, only if items were added |
-| 8 | App icon | `ootd` Sniglet Bold wordmark, off-white ground |
+| 8 | App icon | `ootd` EB Garamond Semibold wordmark, warm paper ground |
 | 9 | Are `other` items mixed into the main wardrobe grid? | Yes, with a category chip to isolate them. `outfit`-category items are never mixed in, full stop — they only ever appear in the Outfits view (revised in Phase 2; the wardrobe grid excludes `category: 'outfit'` outright rather than making it just another filterable value). |
 | 10 | Hosting | Netlify, signed in with GitHub |
 

@@ -35,7 +35,7 @@ export function TagGroupManager() {
         <button
           type="button"
           onClick={() => setNewGroupOpen(true)}
-          className="min-h-11 w-fit border border-rule px-3 text-[13px] text-ink"
+          className="min-h-11 w-fit rounded-chip border border-rule px-3 text-[13px] text-ink"
         >
           + new tag group
         </button>
@@ -62,9 +62,9 @@ function TagGroupCard({ groupName, values }: { groupName: string; values: Custom
   }
 
   return (
-    <div className="border border-rule p-3">
+    <div className="rounded-chip border border-rule p-3">
       <div className="flex items-center justify-between">
-        <p className="text-[13px] font-bold text-ink">{groupName}</p>
+        <p className="text-[13px] font-medium text-ink">{groupName}</p>
         <button type="button" onClick={() => void handleDeleteGroup()} className="min-h-8 px-2 text-[11px] text-accent">
           delete group
         </button>
@@ -90,7 +90,7 @@ function TagGroupCard({ groupName, values }: { groupName: string; values: Custom
             placeholder="new value"
             className="min-h-9 flex-1 border-b border-rule bg-transparent px-1 text-[13px] text-ink outline-none focus:border-ink"
           />
-          <button type="button" onClick={() => void handleAddValue()} className="min-h-9 border border-rule px-2.5 text-[12px] text-ink">
+          <button type="button" onClick={() => void handleAddValue()} className="min-h-9 rounded-chip border border-rule px-2.5 text-[12px] text-ink">
             add
           </button>
         </div>
@@ -160,7 +160,7 @@ function TagValueRow({ tag, siblings }: { tag: CustomTag; siblings: CustomTag[] 
             autoFocus
             onChange={(e) => e.target.value && void handleMergeInto(e.target.value)}
             onBlur={() => setMerging(false)}
-            className="min-h-8 border border-rule bg-paper text-[11px] text-ink"
+            className="min-h-8 rounded-chip border border-rule bg-paper text-[11px] text-ink"
             defaultValue=""
           >
             <option value="" disabled>
@@ -199,7 +199,7 @@ function NewGroupForm({ onDone }: { onDone: () => void }) {
   }
 
   return (
-    <div className="flex flex-col gap-2 border border-rule p-3">
+    <div className="flex flex-col gap-2 rounded-chip border border-rule p-3">
       <input
         type="text"
         value={name}
@@ -219,15 +219,15 @@ function NewGroupForm({ onDone }: { onDone: () => void }) {
         type="button"
         onClick={() => setMultiSelect(!multiSelect)}
         aria-pressed={multiSelect}
-        className={`min-h-8 w-fit border px-2.5 text-[11px] ${multiSelect ? 'border-ink bg-ink text-paper' : 'border-rule text-muted'}`}
+        className={`rounded-chip min-h-8 w-fit border px-2.5 text-[11px] ${multiSelect ? 'border-ink bg-ink text-paper' : 'border-rule text-muted'}`}
       >
         {multiSelect ? 'items can have several values' : 'items can only have one value'}
       </button>
       <div className="flex gap-2">
-        <button type="button" onClick={() => void handleCreate()} className="min-h-9 flex-1 border border-ink text-[13px] text-ink">
+        <button type="button" onClick={() => void handleCreate()} className="min-h-9 flex-1 rounded-chip border border-ink text-[13px] text-ink">
           create
         </button>
-        <button type="button" onClick={onDone} className="min-h-9 border border-rule px-3 text-[13px] text-muted">
+        <button type="button" onClick={onDone} className="min-h-9 rounded-chip border border-rule px-3 text-[13px] text-muted">
           cancel
         </button>
       </div>

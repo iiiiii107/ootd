@@ -21,12 +21,15 @@ import { INK, PAPER, markup } from './icon.js';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outDir = resolve(root, 'public/icons');
 
-const WOFF2 = resolve(root, 'node_modules/@fontsource/sniglet/files/sniglet-latin-800-normal.woff2');
+const WOFF2 = resolve(
+  root,
+  'node_modules/@fontsource/eb-garamond/files/eb-garamond-latin-600-normal.woff2',
+);
 
 /** resvg reads ttf/otf, @fontsource ships woff2 only. */
-async function snigletTtf() {
+async function displayTtf() {
   const ttf = await decompress(await readFile(WOFF2));
-  const path = join(await mkdtemp(join(tmpdir(), 'ootd-icons-')), 'sniglet.ttf');
+  const path = join(await mkdtemp(join(tmpdir(), 'ootd-icons-')), 'eb-garamond.ttf');
   await writeFile(path, ttf);
   return path;
 }
@@ -34,7 +37,7 @@ async function snigletTtf() {
 function render(svg, fontFile, size) {
   return new Resvg(svg, {
     fitTo: { mode: 'width', value: size },
-    font: { fontFiles: [fontFile], loadSystemFonts: false, defaultFontFamily: 'Sniglet' },
+    font: { fontFiles: [fontFile], loadSystemFonts: false, defaultFontFamily: 'EB Garamond' },
   })
     .render()
     .asPng();
@@ -56,7 +59,7 @@ const icons = [
 ];
 
 await mkdir(outDir, { recursive: true });
-const fontFile = await snigletTtf();
+const fontFile = await displayTtf();
 
 for (const { file, size, inset } of icons) {
   const svg = markup({ size, inset, ground: PAPER, ink: INK });

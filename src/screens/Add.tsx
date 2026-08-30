@@ -182,7 +182,7 @@ export default function Add() {
                 }}
               />
             ) : (
-              <li key={entry.key} className="border border-rule p-3 text-[13px] text-accent">
+              <li key={entry.key} className="rounded-chip border border-rule p-3 text-[13px] text-accent">
                 {entry.error}
               </li>
             ),
@@ -207,7 +207,7 @@ export default function Add() {
               setSaved([]);
               void navigate('/wardrobe');
             }}
-            className="min-h-12 border border-ink bg-ink text-[14px] tracking-wide text-paper"
+            className="min-h-12 rounded-chip border border-ink bg-ink text-[14px] tracking-wide text-paper"
           >
             Done · {savedCount} added
           </button>
@@ -247,7 +247,7 @@ function PickerButton({
   accept: string;
 }) {
   return (
-    <label className="flex min-h-11 flex-1 cursor-pointer items-center justify-center border border-rule text-[13px] tracking-wide text-ink">
+    <label className="flex min-h-11 flex-1 cursor-pointer items-center justify-center rounded-chip border border-rule text-[13px] tracking-wide text-ink">
       {label}
       <input
         type="file"
@@ -303,7 +303,7 @@ function TagCard({
   }
 
   return (
-    <li className="flex flex-col gap-3 border border-rule p-3">
+    <li className="flex flex-col gap-3 rounded-chip border border-rule p-3">
       <div className="flex gap-3">
         <div className="h-20 w-20 shrink-0 bg-paper">
           {url && <img src={url} alt="" className="h-full w-full object-cover" />}

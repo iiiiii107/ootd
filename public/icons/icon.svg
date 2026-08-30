@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#FAF9F7"/>
+  <rect width="512" height="512" fill="#FAF8F3"/>
   <text
-    x="251.57574912891985"
-    y="252.6818118466899"
-    fill="#1A1A1A"
-    font-family="Sniglet"
-    font-weight="800"
-    font-size="110.6062717770035"
-    letter-spacing="8.84850174216028"
+    x="249.24595744680852"
+    y="243.8427234042553"
+    fill="#2B2825"
+    font-family="EB Garamond"
+    font-weight="600"
+    font-size="135.08085106382978"
+    letter-spacing="13.508085106382978"
     text-anchor="middle"
     dominant-baseline="central"
   >ootd</text>

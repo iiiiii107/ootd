@@ -19,7 +19,7 @@ export function ScreenTitle({ children }: { children: string }) {
 
   return (
     <div className="relative pt-4">
-      <h1 className="text-center font-display font-extrabold text-3xl lowercase tracking-[0.1em] text-ink">
+      <h1 className="text-center font-display font-semibold text-4xl lowercase tracking-[0.08em] text-ink">
         {children}
       </h1>
       {pathname !== '/settings' && (

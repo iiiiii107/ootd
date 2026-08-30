@@ -10,7 +10,7 @@ export function OutfitTile({ item, onTap }: { item: Item; onTap: () => void }) {
   const url = useItemImageUrl(item.id, item.thumb);
 
   return (
-    <button type="button" onClick={onTap} className="flex flex-col border border-rule text-left">
+    <button type="button" onClick={onTap} className="flex flex-col overflow-hidden rounded-card border border-rule text-left">
       <div className="relative aspect-square bg-paper">
         {url && (
           <img src={url} alt={item.name} className="h-full w-full object-cover" loading="lazy" />
