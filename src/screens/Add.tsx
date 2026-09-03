@@ -9,7 +9,12 @@ import { createItem, suggestName, updateItem } from '../db/items';
 import type { Category } from '../db/types';
 import { FULL_FRAME, type CropRect } from '../images/crop';
 import type { PhotoSegmentation } from '../images/pipeline';
-import { finishPhotoAsync, prepPhotoAsync, segmentPhotoAsync } from '../images/pipelineClient';
+import {
+  finishPhotoAsync,
+  modelUnavailable,
+  prepPhotoAsync,
+  segmentPhotoAsync,
+} from '../images/pipelineClient';
 import { useDebouncedText } from '../lib/useDebouncedText';
 import { useItemImageUrl } from '../lib/useObjectUrl';
 import { CATEGORY_GROUP } from '../tags/groups';
@@ -63,6 +68,7 @@ const CATEGORIES: Category[] = ['top', 'bottom', 'other', 'outfit'];
 export default function Add() {
   const [saved, setSaved] = useState<SavedEntry[]>([]);
   const [status, setStatus] = useState<string | null>(null);
+  const [modelGaveUp, setModelGaveUp] = useState(false);
   const [cropTask, setCropTask] = useState<CropTask | null>(null);
   const navigate = useNavigate();
   const savedCount = saved.filter((entry) => entry.itemId).length;
@@ -116,7 +122,11 @@ export default function Add() {
      * fail because of it.
      */
     const startSegmentation = (base: Blob): Promise<PhotoSegmentation> => {
-      if (!wantsModel) {
+      // `modelUnavailable` means this device has already killed the worker
+      // several times over — almost always a phone reclaiming memory from the
+      // ~40MB model. Carrying on would cost a crash per photo and still
+      // produce nothing, so the rest of the import proceeds without it.
+      if (!wantsModel || modelUnavailable()) {
         return Promise.resolve({ cutout: null, suggestedCrop: FULL_FRAME, detected: false });
       }
       const work = segmentPhotoAsync(base, options).catch(
@@ -180,6 +190,7 @@ export default function Add() {
     }
 
     setStatus(null);
+    setModelGaveUp(modelUnavailable());
   }
 
   return (
@@ -221,6 +232,20 @@ export default function Add() {
       )}
 
       {status && <p className="text-[13px] text-muted">{status}</p>}
+
+      {/*
+        Cutouts giving up is worth saying out loud. Everything still imports,
+        and the photos are real photos rather than failures, so this is a note
+        and not an error — but silently stopping a feature someone switched on
+        is how an app gets a reputation for being broken.
+      */}
+      {modelGaveUp && (
+        <p className="rounded-chip border border-rule p-3 text-[12px] leading-relaxed text-muted">
+          Backgrounds aren’t being removed — this phone ran out of memory for the model. Your photos
+          are saved and everything else works. Turning background removal off in Settings will stop
+          it trying.
+        </p>
+      )}
 
       {/*
         Everything on this screen is already in the database — tags included,

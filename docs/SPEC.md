@@ -243,6 +243,8 @@ The cutout is applied to the saved item **afterwards**, whenever it lands, as a 
 
 Measured end to end: **10.3s → 95ms** to import one garment.
 
+**The worker must be able to die.** A phone reclaiming memory while ~40MB of model and ~24MB of inference runtime are resident will kill it, and that is not an exceptional case on a real device. When it happens the dead instance must be discarded and rebuilt, and the request retried once — caching the corpse meant the first failure showed an error and every photo after it hung forever on a promise that could never settle. After three deaths the model is abandoned for the session and imports continue without cutouts, said out loud rather than silently: retrying past that point costs a crash per photo and still produces nothing.
+
 ### 7.6 ootds — the wear log
 
 Two things live on the Outfits screen, related but not the same: **recently worn** (the default) and **saved**.
