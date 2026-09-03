@@ -10,7 +10,13 @@ import { encodeWithAlpha } from './encode';
  * what the outfit actually looks like, there's no separate "original" to
  * fall back to.
  */
-const SIZE = 400;
+/**
+ * Portrait, not square. A stack of garments is a tall thing, and squeezing two
+ * of them into a square gave each one half the height of its own width — the
+ * source of the squashed look these used to have.
+ */
+const WIDTH = 400;
+const HEIGHT = 600;
 const QUALITY = 0.85;
 
 export async function composeOutfitThumb(members: Item[]): Promise<Blob> {
@@ -23,19 +29,28 @@ export async function composeOutfitThumb(members: Item[]): Promise<Blob> {
     drawable.map((member) => createImageBitmap(member.thumb as Blob)),
   );
   try {
-    const canvas = new OffscreenCanvas(SIZE, SIZE);
+    const canvas = new OffscreenCanvas(WIDTH, HEIGHT);
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('2D canvas context unavailable');
 
-    const cellHeight = Math.floor(SIZE / bitmaps.length);
+    const cellHeight = Math.floor(HEIGHT / bitmaps.length);
     bitmaps.forEach((bitmap, i) => {
-      const side = Math.min(bitmap.width, bitmap.height);
-      const sx = (bitmap.width - side) / 2;
-      const sy = (bitmap.height - side) / 2;
       const y = i * cellHeight;
-      // The last cell absorbs any rounding remainder so the stack fills SIZE exactly.
-      const height = i === bitmaps.length - 1 ? SIZE - y : cellHeight;
-      ctx.drawImage(bitmap, sx, sy, side, side, 0, y, SIZE, height);
+      // The last cell absorbs any rounding remainder so the stack fills HEIGHT exactly.
+      const height = i === bitmaps.length - 1 ? HEIGHT - y : cellHeight;
+
+      // Crop the source to the cell's own shape before drawing, rather than
+      // squeezing a square into it. This is what was wrong before: a square
+      // region was drawn into a half-height cell, so every garment in a
+      // two-piece outfit came out squashed to half its proper height.
+      const cellAspect = WIDTH / height;
+      const sourceAspect = bitmap.width / bitmap.height;
+      const sw = sourceAspect > cellAspect ? bitmap.height * cellAspect : bitmap.width;
+      const sh = sourceAspect > cellAspect ? bitmap.height : bitmap.width / cellAspect;
+      const sx = (bitmap.width - sw) / 2;
+      const sy = (bitmap.height - sh) / 2;
+
+      ctx.drawImage(bitmap, sx, sy, sw, sh, 0, y, WIDTH, height);
     });
 
     // Transparency is only worth its file size when a member actually has

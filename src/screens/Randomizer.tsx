@@ -135,7 +135,7 @@ export default function Randomizer() {
   if (items === undefined) return null; // first read from IndexedDB
 
   return (
-    <div className="flex flex-col gap-4 px-4 pb-24">
+    <div className="flex flex-col gap-4 px-4 pb-8">
       <ScreenTitle>randomizer</ScreenTitle>
 
       <div className="flex flex-col gap-3">
@@ -283,7 +283,10 @@ function ResultCard({
 }) {
   const url = useItemImageUrl(item.id, item.thumb);
   return (
-    <div className="relative rounded-chip border border-rule">
+    // Capped and centred rather than full-bleed. At full width two of these
+    // stacked are taller than a phone screen, so the pair could not be seen
+    // at once — which is the entire point of the randomizer.
+    <div className="relative mx-auto w-full max-w-[190px] rounded-chip border border-rule">
       <div className="aspect-square bg-paper">
         {url && <img src={url} alt={item.name} className="h-full w-full object-cover" />}
       </div>

@@ -286,6 +286,10 @@ Manage tag groups · **Export backup** · **Import backup** · storage used · a
 
 Minimal but fashionable, meaning: the clothes are the only colour on screen.
 
+- **The app shell is exactly the viewport, and only the middle scrolls.** `h-dvh` with `overflow-hidden`, safe-area insets on the shell rather than on `body`. A minimum height let the shell grow past the screen and take the tab bar with it, and insets on a full-height body added to the viewport instead of insetting within it — pushing the bar off by the height of the home bar. The tab bar is always visible.
+
+- **Three garments across the wardrobe on a phone**, and outfits the same. Outfit composites are portrait (2:3), and each member is cropped to its cell's shape before drawing rather than squeezed into it — a square source drawn into a half-height cell is what made two-piece outfits look squashed.
+
 - Beige ground `#EFE9D8`, warm near-black text `#2B2825`, warm grey `#6E6757` for secondary. The ground is 10 minutes to spare's `--page` — the desk itself — rather than its `--paper`, the near-white card laid on the desk. ootd had the card colour, which suits an app that layers cards on a surface and not one with a single flat ground that is most of what you look at. The secondary grey is darker than the family's: the beige is ~12% less luminous than the near-white it replaced, and at the inherited value secondary text fell to 3.3:1 against it, below the 4.5:1 its size calls for. Colour now carries meaning rather than decoration, and it is what tells one thing from another — the job small-caps and letterspacing were doing badly:
 
   - **Six tag hues.** Every tag group owns one, and it is the group's identity everywhere it appears: its label, and the fill of its selected chips. Custom groups cycle through the list. Season is sage, formality plum, location ochre, and so on.

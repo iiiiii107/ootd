@@ -59,6 +59,29 @@ export async function getAppearance(): Promise<Appearance> {
   return { ...DEFAULT_APPEARANCE, ...stored };
 }
 
+const DENSITY_MIGRATED_KEY = 'appearanceDensityDefault3';
+
+/**
+ * The wardrobe's default went from two garments across to three.
+ *
+ * A stored `2` needs moving with it, and can be: every appearance write saves
+ * the whole object, so anyone who ever changed a colour has a density they
+ * never chose — the old default, written incidentally. Migrating it is what
+ * makes the new default actually reach an existing wardrobe.
+ *
+ * Guarded by its own flag so it happens exactly once. Someone who genuinely
+ * prefers two across is moved a single time and can set it straight back, and
+ * it will stay: the flag means this never runs again.
+ */
+export async function migrateDensityDefault(): Promise<void> {
+  if (await getMeta<boolean>(DENSITY_MIGRATED_KEY)) return;
+  await setMeta(DENSITY_MIGRATED_KEY, true);
+
+  const stored = await getMeta<Partial<Appearance>>(APPEARANCE_KEY);
+  if (stored?.density !== 2) return;
+  await updateAppearance({ density: DEFAULT_APPEARANCE.density });
+}
+
 /** Merge a change into the stored appearance and apply it immediately. */
 export async function updateAppearance(patch: Partial<Appearance>): Promise<Appearance> {
   const next = { ...(await getAppearance()), ...patch };

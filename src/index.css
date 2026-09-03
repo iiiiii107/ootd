@@ -33,9 +33,11 @@ body {
   background-color: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-sans);
-  /* Nothing may hide under the iPhone home bar or notch (spec §8). */
-  padding: env(safe-area-inset-top) env(safe-area-inset-right)
-    env(safe-area-inset-bottom) env(safe-area-inset-left);
+  /* Safe areas are handled by the app shell and the tab bar rather than here
+     (src/components/Layout.tsx): as padding on a full-height body they added
+     to the viewport instead of insetting within it, which pushed the tab bar
+     off the bottom of the screen by the height of the home bar. */
+  margin: 0;
   -webkit-font-smoothing: antialiased;
 }
 

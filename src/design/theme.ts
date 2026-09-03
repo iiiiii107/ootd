@@ -116,7 +116,7 @@ export const DEFAULT_APPEARANCE: Appearance = {
   paletteDark: {},
   fontDisplay: 'garamond',
   fontBody: 'inter',
-  density: 2,
+  density: 3,
 };
 
 /**

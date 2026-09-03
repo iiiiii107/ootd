@@ -36,7 +36,7 @@ import { useObjectUrl } from '../lib/useObjectUrl';
  */
 export default function Settings() {
   return (
-    <div className="flex flex-col gap-8 px-4 pb-16">
+    <div className="flex flex-col gap-8 px-4 pb-10">
       <ScreenTitle>settings</ScreenTitle>
 
       <AppearanceSection />

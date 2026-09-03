@@ -13,7 +13,7 @@ export function OutfitTile({ item, onTap }: { item: Item; onTap: () => void }) {
 
   return (
     <button type="button" onClick={onTap} className="flex flex-col overflow-hidden rounded-card border border-rule text-left">
-      <div className="tile relative aspect-square bg-paper">
+      <div className="tile relative aspect-[2/3] bg-paper">
         {url && (
           <img src={url} alt={item.name} className="h-full w-full object-cover" loading="lazy" />
         )}
@@ -23,7 +23,7 @@ export function OutfitTile({ item, onTap }: { item: Item; onTap: () => void }) {
           </span>
         )}
       </div>
-      <p className="truncate px-2 py-1.5 text-[13px] text-ink">{item.name}</p>
+      <p className="truncate px-1.5 py-1 text-[11px] text-ink">{item.name}</p>
     </button>
   );
 }

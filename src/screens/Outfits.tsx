@@ -185,7 +185,7 @@ export default function Outfits() {
           <p className="text-[13px] text-muted">Nothing matches these filters.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
           {visible?.map((item) => (
             <OutfitTile key={item.id} item={item} onTap={() => setOpenItemId(item.id)} />
           ))}

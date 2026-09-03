@@ -106,7 +106,7 @@ export default function Wardrobe() {
   }
 
   return (
-    <div className="flex flex-col gap-2 px-4 pb-24">
+    <div className="flex flex-col gap-2 px-4 pb-8">
       <ScreenTitle>wardrobe</ScreenTitle>
 
       {/*
