@@ -55,8 +55,36 @@ function urlFor(key: string, blob: Blob): string {
  * effect — it's idempotent through the cache, and it saves every tile a
  * second render just to learn its own `src`.
  */
-export function useItemImageUrl(id: string, blob: Blob | null | undefined): string | undefined {
-  return blob ? urlFor(`${id}:${blob.size}`, blob) : undefined;
+export function useItemImageUrl(
+  id: string,
+  blob: Blob | null | undefined,
+  /** Bump to force a fresh URL after the last one failed to load. */
+  attempt = 0,
+): string | undefined {
+  return blob ? urlFor(keyFor(id, blob, attempt), blob) : undefined;
+}
+
+function keyFor(id: string, blob: Blob, attempt: number): string {
+  return attempt === 0 ? `${id}:${blob.size}` : `${id}:${blob.size}:${attempt}`;
+}
+
+/**
+ * Throw away a cached URL that has stopped working.
+ *
+ * These URLs are deliberately long-lived (see above), and that is the trade
+ * that makes editing not re-decode the whole grid. The cost is that they can
+ * outlive their usefulness: WebKit backs an IndexedDB blob with a file, and a
+ * URL held across memory pressure can be invalidated underneath us — the image
+ * then fails to load and the tile shows a broken-image mark, while the blob
+ * itself is perfectly intact. Dropping the entry and asking for a new URL
+ * recovers it without giving up the caching.
+ */
+export function dropItemImageUrl(id: string, blob: Blob | null | undefined, attempt = 0): void {
+  if (!blob) return;
+  const key = keyFor(id, blob, attempt);
+  const stale = cache.get(key);
+  if (stale) URL.revokeObjectURL(stale);
+  cache.delete(key);
 }
 
 /**

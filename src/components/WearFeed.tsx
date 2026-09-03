@@ -1,7 +1,7 @@
 import { useWearMembers, useWears } from '../db/hooks';
 import { removeWear } from '../db/wears';
 import type { Item, Wear } from '../db/types';
-import { useItemImageUrl } from '../lib/useObjectUrl';
+import { ItemImage } from './ItemImage';
 
 /**
  * What you have actually worn, most recent first (spec §7.6).
@@ -72,10 +72,9 @@ function WearRow({ entry }: { entry: Wear }) {
 }
 
 function MemberThumb({ item }: { item: Item }) {
-  const url = useItemImageUrl(item.id, item.thumb);
   return (
     <div className="h-14 w-14 shrink-0 bg-paper">
-      {url && <img src={url} alt={item.name} className="h-full w-full object-cover" loading="lazy" />}
+      <ItemImage item={item} className="h-full w-full object-cover" />
     </div>
   );
 }

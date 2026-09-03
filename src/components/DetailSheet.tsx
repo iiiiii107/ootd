@@ -11,7 +11,7 @@ import {
 } from '../db/items';
 import { logWearToday } from '../db/wears';
 import { BackgroundEraser } from './BackgroundEraser';
-import { useItemImageUrl } from '../lib/useObjectUrl';
+import { ItemImage } from './ItemImage';
 import { useOutfitComposite } from '../lib/useOutfitComposite';
 import { useDebouncedText } from '../lib/useDebouncedText';
 import { useGroups } from '../tags/useGroups';
@@ -239,7 +239,6 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
 /** One "made from" thumbnail. A member can be trashed independently of the outfit that used it, hence the guard. */
 function MemberThumb({ id, onTap }: { id: string; onTap: () => void }) {
   const member = useItem(id);
-  const url = useItemImageUrl(id, member?.thumb);
 
   if (!member) {
     return <p className="shrink-0 self-center text-[11px] text-muted italic">removed piece</p>;
@@ -248,7 +247,7 @@ function MemberThumb({ id, onTap }: { id: string; onTap: () => void }) {
   return (
     <button type="button" onClick={onTap} className="flex w-20 shrink-0 flex-col gap-1 text-left">
       <div className="aspect-square bg-paper">
-        {url && <img src={url} alt={member.name} className="h-full w-full object-cover" />}
+        <ItemImage item={member} className="h-full w-full object-cover" />
       </div>
       <p className="truncate text-[11px] text-muted">{member.name}</p>
     </button>

@@ -16,7 +16,7 @@ import {
   segmentPhotoAsync,
 } from '../images/pipelineClient';
 import { useDebouncedText } from '../lib/useDebouncedText';
-import { useItemImageUrl } from '../lib/useObjectUrl';
+import { ItemImage } from '../components/ItemImage';
 import { CATEGORY_GROUP } from '../tags/groups';
 import { useGroups } from '../tags/useGroups';
 
@@ -343,7 +343,6 @@ function TagCard({
 }) {
   const item = useItem(itemId);
   const groups = useGroups();
-  const url = useItemImageUrl(itemId, item?.thumb);
   const [expanded, setExpanded] = useState(true);
   const [name, setName] = useDebouncedText(item?.name ?? '', (value) =>
     void updateItem(itemId, { name: value }),
@@ -365,7 +364,7 @@ function TagCard({
     <li className="flex flex-col gap-3 rounded-chip border border-rule p-3">
       <div className="flex gap-3">
         <div className="h-20 w-20 shrink-0 bg-paper">
-          {url && <img src={url} alt="" className="h-full w-full object-cover" />}
+          <ItemImage item={item} alt="" className="h-full w-full object-cover" />
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col gap-2">

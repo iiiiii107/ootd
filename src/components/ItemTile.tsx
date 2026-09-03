@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 
 import type { Item } from '../db/types';
-import { useItemImageUrl } from '../lib/useObjectUrl';
+import { ItemImage } from './ItemImage';
 
 const LONG_PRESS_MS = 500;
 
@@ -27,7 +27,6 @@ export function ItemTile({
   onToggleSelect: () => void;
   onLongPress: () => void;
 }) {
-  const url = useItemImageUrl(item.id, item.thumb);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firedLongPress = useRef(false);
 
@@ -61,9 +60,7 @@ export function ItemTile({
       onClick={handleClick}
       className="tile relative aspect-square bg-paper"
     >
-      {url && (
-        <img src={url} alt={item.name} className="h-full w-full object-cover" loading="lazy" />
-      )}
+      <ItemImage item={item} className="h-full w-full object-cover" />
       {item.inWash && (
         <span
           className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-accent"

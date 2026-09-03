@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useWardrobeItems } from '../db/hooks';
 import { createOutfitFromMembers } from '../db/items';
 import type { Item } from '../db/types';
-import { useItemImageUrl } from '../lib/useObjectUrl';
+import { ItemImage } from './ItemImage';
 
 /**
  * Build an outfit from garments already in the wardrobe (spec §7.3).
@@ -105,12 +105,11 @@ export function OutfitBuilder({
  * being able to see it before saving.
  */
 function PickTile({ item, order, onTap }: { item: Item; order: number; onTap: () => void }) {
-  const url = useItemImageUrl(item.id, item.thumb);
   const chosen = order >= 0;
 
   return (
     <button type="button" onClick={onTap} aria-pressed={chosen} className="tile relative aspect-square bg-paper">
-      {url && <img src={url} alt={item.name} className="h-full w-full object-cover" loading="lazy" />}
+      <ItemImage item={item} className="h-full w-full object-cover" />
       {chosen && (
         <span
           className="absolute top-1.5 left-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px]"

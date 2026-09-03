@@ -9,7 +9,7 @@ import { logWearToday } from '../db/wears';
 import { getMeta, setMeta } from '../db/meta';
 import type { Formality, Item, Location, Season, Vibe } from '../db/types';
 import { toggleInArray } from '../lib/toggleInArray';
-import { useItemImageUrl } from '../lib/useObjectUrl';
+import { ItemImage } from '../components/ItemImage';
 import {
   DEFAULT_RANDOMIZER_FILTERS,
   currentSeason,
@@ -281,14 +281,13 @@ function ResultCard({
   onToggleLock: () => void;
   lockable?: boolean;
 }) {
-  const url = useItemImageUrl(item.id, item.thumb);
   return (
     // Capped and centred rather than full-bleed. At full width two of these
     // stacked are taller than a phone screen, so the pair could not be seen
     // at once — which is the entire point of the randomizer.
     <div className="relative mx-auto w-full max-w-[190px] rounded-chip border border-rule">
       <div className="aspect-square bg-paper">
-        {url && <img src={url} alt={item.name} className="h-full w-full object-cover" />}
+        <ItemImage item={item} className="h-full w-full object-cover" lazy={false} />
       </div>
       {lockable && (
         <button

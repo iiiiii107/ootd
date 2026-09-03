@@ -258,6 +258,14 @@ Editing touches **the alpha channel only**, never colour. That makes an undo ste
 
 **A large removal warns rather than being refused.** A share-of-the-whole-image cap was tried first and was worse than nothing: a garment occupying a fifth of the frame sat under any sensible cap, so tapping it erased the lot silently, while a genuinely large background would have been blocked for no reason — it fired in exactly the wrong cases. The share is now measured against *visible* pixels, and a big one only says so. Undo is the safety net; a tool that sometimes refuses a legitimate tap is worse than one that is simply reversible.
 
+### 7.9 A broken thumbnail is a broken handle, not a lost photo
+
+Object URLs are cached and long-lived on purpose (§7.4): that is what stops one keystroke re-decoding every tile on screen. The cost, seen on a real phone, is that a URL can stop resolving while the blob behind it is perfectly intact — WebKit backs an IndexedDB blob with a file, and a URL held across memory pressure can be invalidated underneath the app. The tile then shows the browser's broken-image mark for a photo that was never lost.
+
+It was diagnosable precisely because **the same garment still drew correctly inside an outfit composite**, which builds a fresh URL every time and never touches the cache. Everything that went through the cache was broken; everything that didn't was fine. That is what located the fault in the handle rather than the data.
+
+So every garment photo renders through one component that recovers: on failure it discards the cached URL, asks for a new one, and if that also fails falls back to the full-size image — a different blob entirely. Two attempts, then it stops, because a third would loop forever on a genuinely undecodable photo.
+
 ### 7.6 ootds — the wear log
 
 Two things live on the Outfits screen, related but not the same: **recently worn** (the default) and **saved**.

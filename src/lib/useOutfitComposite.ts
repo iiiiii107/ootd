@@ -37,14 +37,32 @@ function remember(key: string, url: string): void {
   }
 }
 
+/**
+ * Discard a composite whose URL has stopped working, so the next render
+ * rebuilds it. Same reason as `dropItemImageUrl`: the drawing is fine, the
+ * handle to it is not.
+ */
+export function dropOutfitComposite(item: Item | undefined): void {
+  if (!item) return;
+  const key = `${item.id}:${item.memberIds.join(',')}`;
+  const stale = cache.get(key);
+  if (stale) URL.revokeObjectURL(stale);
+  cache.delete(key);
+}
+
 export function useOutfitComposite(
   item: Item | undefined,
   /** Which stored blob to prefer when the item has one of its own. */
   prefer: 'thumb' | 'image' = 'thumb',
+  /** Bump to rebuild after the last URL failed to load. */
+  attempt = 0,
 ): string | undefined {
   const stored = prefer === 'image' ? item?.image : item?.thumb;
-  const own = useItemImageUrl(item?.id ?? '', stored ?? undefined);
+  const own = useItemImageUrl(item?.id ?? '', stored ?? undefined, attempt);
   const key = item && !stored ? `${item.id}:${item.memberIds.join(',')}` : null;
+  // `attempt` is not part of the key: a retry drops the entry first, so the
+  // rebuild happens naturally and the cache stays keyed by what it depicts.
+  void attempt;
   const [composed, setComposed] = useState<string | undefined>(() =>
     key ? cache.get(key) : undefined,
   );
@@ -82,7 +100,7 @@ export function useOutfitComposite(
     return () => {
       live = false;
     };
-  }, [key, item]);
+  }, [key, item, attempt]);
 
   return stored ? own : composed;
 }
