@@ -10,6 +10,7 @@ import {
   updateItem,
 } from '../db/items';
 import { logWearToday } from '../db/wears';
+import { BackgroundEraser } from './BackgroundEraser';
 import { useItemImageUrl } from '../lib/useObjectUrl';
 import { useOutfitComposite } from '../lib/useOutfitComposite';
 import { useDebouncedText } from '../lib/useDebouncedText';
@@ -49,6 +50,7 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
   // image untouched. One call site, both kinds.
   const imageUrl = useOutfitComposite(item, 'image');
   const [viewingMemberId, setViewingMemberId] = useState<string | null>(null);
+  const [erasing, setErasing] = useState(false);
 
   // Text fields write on a pause rather than per keystroke — see
   // src/lib/useDebouncedText.ts for why that matters this much here.
@@ -146,6 +148,21 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
           {item.inWash ? 'in the wash' : 'clean'}
         </button>
 
+        {/*
+          Only for items with a photograph of their own: an outfit assembled
+          from wardrobe pieces has no image to edit, and erasing background
+          belongs on the garments it is composed from anyway.
+        */}
+        {item.image && item.memberIds.length === 0 && (
+          <button
+            type="button"
+            onClick={() => setErasing(true)}
+            className="rounded-chip min-h-9 w-fit border border-rule px-2.5 text-[12px] text-ink"
+          >
+            {item.hasCutout ? 'tidy up the background' : 'remove the background'}
+          </button>
+        )}
+
         {groups.map((group) => (
           <TagChipRow
             key={group.id}
@@ -213,6 +230,8 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
       {viewingMemberId && (
         <DetailSheet itemId={viewingMemberId} onClose={() => setViewingMemberId(null)} />
       )}
+
+      {erasing && <BackgroundEraser item={item} onClose={() => setErasing(false)} />}
     </div>
   );
 }

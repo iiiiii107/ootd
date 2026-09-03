@@ -245,6 +245,19 @@ Measured end to end: **10.3s → 95ms** to import one garment.
 
 **The worker must be able to die.** A phone reclaiming memory while ~40MB of model and ~24MB of inference runtime are resident will kill it, and that is not an exceptional case on a real device. When it happens the dead instance must be discarded and rebuilt, and the request retried once — caching the corpse meant the first failure showed an error and every photo after it hung forever on a promise that could never settle. After three deaths the model is abandoned for the session and imports continue without cutouts, said out loud rather than silently: retrying past that point costs a crash per photo and still produces nothing.
 
+### 7.8 Erasing background by hand
+
+The model gets it almost right often enough that an escape hatch is worth more than another threshold. Any garment with a photograph of its own offers **remove / tidy up the background** from its detail sheet.
+
+Two tools, because leftover background comes in two shapes:
+
+- **Tap a patch** — a flood fill from the tapped pixel over connected pixels of *similar colour*. Similarity rather than pure alpha-connectivity, because a leftover patch fused to the garment's edge shares no boundary the alpha channel can see but is still a different colour. Compared against the seed pixel rather than each neighbour, so a gradient across a wall doesn't creep into the garment.
+- **Brush** — a soft-edged eraser for background joined to the garment, where no automatic rule can say where one ends and the other begins. Soft because a hard disc leaves a scalloped edge where strokes meet, next to a garment edge that is itself antialiased.
+
+Editing touches **the alpha channel only**, never colour. That makes an undo step one byte per pixel instead of four — the difference between an affordable history on a phone and none — and makes every erase exactly reversible.
+
+**A large removal warns rather than being refused.** A share-of-the-whole-image cap was tried first and was worse than nothing: a garment occupying a fifth of the frame sat under any sensible cap, so tapping it erased the lot silently, while a genuinely large background would have been blocked for no reason — it fired in exactly the wrong cases. The share is now measured against *visible* pixels, and a big one only says so. Undo is the safety net; a tool that sometimes refuses a legitimate tap is worse than one that is simply reversible.
+
 ### 7.6 ootds — the wear log
 
 Two things live on the Outfits screen, related but not the same: **recently worn** (the default) and **saved**.

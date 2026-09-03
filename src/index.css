@@ -135,3 +135,16 @@ button {
     grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
+
+/* The transparency chequerboard, used behind the background eraser.
+   Without it, removed background and background that merely matches the page
+   colour look identical, which makes the tool impossible to judge. */
+.checkerboard {
+  --square: 12px;
+  background-color: #fff;
+  background-image:
+    linear-gradient(45deg, #d8d3c6 25%, transparent 25%, transparent 75%, #d8d3c6 75%),
+    linear-gradient(45deg, #d8d3c6 25%, transparent 25%, transparent 75%, #d8d3c6 75%);
+  background-position: 0 0, calc(var(--square)) calc(var(--square));
+  background-size: calc(var(--square) * 2) calc(var(--square) * 2);
+}
