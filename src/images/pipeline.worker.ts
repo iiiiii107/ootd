@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 
 import type { CropRect } from './crop';
-import { analyzePhoto, finishPhoto, type AnalyzeOptions, type PhotoAnalysis } from './pipeline';
+import { finishPhoto, prepPhoto, segmentPhoto, type AnalyzeOptions } from './pipeline';
 
 /**
  * The photo pipeline, off the main thread.
@@ -12,15 +12,19 @@ import { analyzePhoto, finishPhoto, type AnalyzeOptions, type PhotoAnalysis } fr
  * through a batch. Nothing here touches the DOM: every step is
  * `createImageBitmap` and `OffscreenCanvas`, both of which a worker has.
  *
- * Being off the main thread is also what makes lookahead safe — the Add
- * screen analyses the next photo while you crop the current one, which is
- * where most of the waiting actually disappears.
+ * The three messages exist separately because only one of them is slow.
+ * `prep` is ~60ms and the crop step waits for it; `segment` is ~9.5s and
+ * nothing waits for it at all — the garment is saved from the plain photo and
+ * the cutout is applied whenever it lands (src/screens/Add.tsx). Bundling
+ * them together, as one `analyze`, is what made importing a single garment
+ * take ten seconds.
  */
 
 /** Split from the id so callers can build a body without `Omit`, which doesn't distribute over a union. */
 export type WorkerRequestBody =
-  | { kind: 'analyze'; file: Blob; options: AnalyzeOptions }
-  | { kind: 'finish'; analysis: PhotoAnalysis; crop: CropRect };
+  | { kind: 'prep'; file: Blob }
+  | { kind: 'segment'; base: Blob; options: AnalyzeOptions }
+  | { kind: 'finish'; base: Blob; crop: CropRect; cutout: Blob | null };
 
 export type WorkerRequest = WorkerRequestBody & { id: number };
 
@@ -34,9 +38,11 @@ scope.onmessage = async (event: MessageEvent<WorkerRequest>) => {
   const message = event.data;
   try {
     const result =
-      message.kind === 'analyze'
-        ? await analyzePhoto(message.file, message.options)
-        : await finishPhoto(message.analysis, message.crop);
+      message.kind === 'prep'
+        ? await prepPhoto(message.file)
+        : message.kind === 'segment'
+          ? await segmentPhoto(message.base, message.options)
+          : await finishPhoto(message.base, message.crop, message.cutout);
     scope.postMessage({ id: message.id, ok: true, result } satisfies WorkerResponse);
   } catch (error) {
     scope.postMessage({

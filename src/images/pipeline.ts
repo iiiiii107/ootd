@@ -19,34 +19,49 @@ export interface AnalyzeOptions {
 }
 
 /**
- * Everything known about a photo before the user has chosen a crop. Held in
- * memory only for as long as the crop step is on screen.
+ * What the model found. Arrives *after* the crop step is already on screen,
+ * and after the garment may already have been saved.
  */
-export interface PhotoAnalysis {
-  /** The resized, compressed photo — the crop step's backdrop, and the source of the plain image. */
-  base: Blob;
-  /** Transparent-PNG segmentation of `base`, or null if it was off or failed. */
+export interface PhotoSegmentation {
+  /** Transparent-PNG segmentation of the base photo, or null if it was off or failed. */
   cutout: Blob | null;
-  /** Where the crop box starts. The detected garment, or the whole frame. */
+  /** Where the crop box should sit. The detected garment, or the whole frame. */
   suggestedCrop: CropRect;
   /** True only when the box above actually came from detection — the crop step says so. */
   detected: boolean;
 }
 
 /**
- * Phase one of import: decode, resize, and (optionally) find the garment.
- * Stops short of saving anything, because the crop step comes between.
+ * Phase one: decode and resize. Measured at ~60ms, and deliberately does not
+ * touch the model.
  *
- * Detection and background removal are the same single inference pass — the
- * model's alpha mask *is* the garment outline — so having both switched on
- * costs no more than having either one on (src/images/cutout.ts).
+ * This used to run segmentation too, and that is what made importing a single
+ * garment take ten seconds — the crop step could not appear until the model
+ * had finished. Segmentation is now `segmentPhoto` below, started alongside
+ * this and never waited on (src/screens/Add.tsx).
  */
-export async function analyzePhoto(file: Blob, options: AnalyzeOptions): Promise<PhotoAnalysis> {
+export async function prepPhoto(file: Blob): Promise<Blob> {
   const jpeg = await ensureJpeg(file);
-  const { image: base } = await processImage(jpeg);
+  const { image } = await processImage(jpeg);
+  return image;
+}
 
+/**
+ * The model pass: the garment's outline and its cutout, from one inference.
+ *
+ * ~9.5s, and no arrangement of inputs changes that — measured at 384px,
+ * 512px, 768px and 1200px inputs, every one of them within 8% of the others,
+ * because the model resizes to its own fixed resolution first. WebGPU came
+ * within a second of the CPU path too. It cannot be made fast, so nothing is
+ * allowed to wait on it.
+ *
+ * Detection and background removal share this single pass — the model's alpha
+ * mask *is* the garment outline — so having both switched on costs no more
+ * than having either one on.
+ */
+export async function segmentPhoto(base: Blob, options: AnalyzeOptions): Promise<PhotoSegmentation> {
   if (!options.detect && !options.cutout) {
-    return { base, cutout: null, suggestedCrop: FULL_FRAME, detected: false };
+    return { cutout: null, suggestedCrop: FULL_FRAME, detected: false };
   }
 
   const raw = await segment(base);
@@ -56,7 +71,6 @@ export async function analyzePhoto(file: Blob, options: AnalyzeOptions): Promise
   const bounds = options.detect && cutout ? await detectSubjectBounds(cutout) : null;
 
   return {
-    base,
     cutout: options.cutout ? cutout : null,
     suggestedCrop: bounds ?? FULL_FRAME,
     detected: bounds != null,
@@ -74,12 +88,16 @@ export async function analyzePhoto(file: Blob, options: AnalyzeOptions): Promise
  * post-cutout, much of the frame is flat white background, which would skew
  * the average away from the garment itself.
  */
-export async function finishPhoto(analysis: PhotoAnalysis, crop: CropRect): Promise<ImportedPhoto> {
-  const plain = await cropToBlob(analysis.base, crop);
+export async function finishPhoto(
+  base: Blob,
+  crop: CropRect,
+  cutout: Blob | null = null,
+): Promise<ImportedPhoto> {
+  const plain = await cropToBlob(base, crop);
   const plainThumb = await cropToThumb(plain);
   const dominantColor = await extractDominantColor(plainThumb);
 
-  if (!analysis.cutout) {
+  if (!cutout) {
     return { image: plain, thumb: plainThumb, dominantColor, hasCutout: false };
   }
 
@@ -87,7 +105,7 @@ export async function finishPhoto(analysis: PhotoAnalysis, crop: CropRect): Prom
     // Transparency is kept all the way through rather than flattened onto
     // white — a cutout should sit directly on the app's paper background
     // wherever it's shown, not carry a white rectangle around with it.
-    const image = await cropToBlob(analysis.cutout, crop, true);
+    const image = await cropToBlob(cutout, crop, true);
     const thumb = await cropToThumb(image, true);
     return { image, thumb, dominantColor, hasCutout: true };
   } catch {

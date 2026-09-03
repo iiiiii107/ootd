@@ -7,9 +7,9 @@ import { TagChipRow } from '../components/TagChipRow';
 import { useAutoDetectEnabled, useCutoutEnabled, useItem } from '../db/hooks';
 import { createItem, suggestName, updateItem } from '../db/items';
 import type { Category } from '../db/types';
-import type { CropRect } from '../images/crop';
-import type { PhotoAnalysis } from '../images/pipeline';
-import { analyzePhotoAsync, finishPhotoAsync } from '../images/pipelineClient';
+import { FULL_FRAME, type CropRect } from '../images/crop';
+import type { PhotoSegmentation } from '../images/pipeline';
+import { finishPhotoAsync, prepPhotoAsync, segmentPhotoAsync } from '../images/pipelineClient';
 import { useDebouncedText } from '../lib/useDebouncedText';
 import { useItemImageUrl } from '../lib/useObjectUrl';
 import { CATEGORY_GROUP } from '../tags/groups';
@@ -22,7 +22,9 @@ interface SavedEntry {
 }
 
 interface CropTask {
-  analysis: PhotoAnalysis;
+  base: Blob;
+  /** Resolves when the model is done. May well outlive the crop step. */
+  segmentation: Promise<PhotoSegmentation>;
   index: number;
   total: number;
 }
@@ -36,9 +38,17 @@ const CATEGORIES: Category[] = ['top', 'bottom', 'other', 'outfit'];
  * Camera or library picker, multi-select → per-photo crop → save → tag
  * (spec §7.4). Every photo goes through the same three beats:
  *
- *   1. analyse — decode, resize, and find the garment if detection is on
- *   2. crop    — the box arrives around the garment; usually one tap
+ *   1. prep    — decode and resize, ~60ms
+ *   2. crop    — on screen immediately; the box snaps to the garment if the
+ *                model finds it before you have touched it
  *   3. tag     — the full tag set, right here, while the garment is in hand
+ *
+ * **Nothing waits for the model.** Segmentation is ~9.5s and cannot be made
+ * faster — measured across four input sizes and both backends — so a garment
+ * is saved from its plain photo the moment you tap save, and the cutout is
+ * applied to the item afterwards, whenever it arrives. Importing one garment
+ * used to take ten seconds; it now takes about a tenth of one, and the
+ * background disappears a few seconds later while you are already tagging.
  *
  * Tagging beyond category is still never mandatory: the item is already saved
  * by the time its card appears, so walking away mid-tagging loses nothing and
@@ -94,34 +104,47 @@ export default function Add() {
     if (!files || files.length === 0) return;
     const list = Array.from(files);
     const options = { detect: detectEnabled, cutout: cutoutEnabled };
+    const wantsModel = detectEnabled || cutoutEnabled;
 
     /**
-     * Start a photo's analysis without waiting for it. The stray `.catch`
-     * keeps a rejection from going unhandled if the import is abandoned
-     * before anyone awaits this promise; the original still rejects for
-     * whoever does await it.
+     * Kick off the model without waiting for it. The stray `.catch` keeps a
+     * rejection from going unhandled while nobody is awaiting yet; the
+     * original still rejects for whoever eventually does.
+     *
+     * A failure resolves to "no cutout, whole frame" rather than propagating
+     * (spec R3): background removal is a nicety, and an import must never
+     * fail because of it.
      */
-    const start = (file: Blob) => {
-      const work = analyzePhotoAsync(file, options);
-      work.catch(() => {});
+    const startSegmentation = (base: Blob): Promise<PhotoSegmentation> => {
+      if (!wantsModel) {
+        return Promise.resolve({ cutout: null, suggestedCrop: FULL_FRAME, detected: false });
+      }
+      const work = segmentPhotoAsync(base, options).catch(
+        (): PhotoSegmentation => ({ cutout: null, suggestedCrop: FULL_FRAME, detected: false }),
+      );
       return work;
     };
 
-    // The lookahead: photo N+1 is analysed while you crop photo N. Analysis
-    // is ~9s of model inference no matter what hardware runs it, so the only
-    // real fix is to spend it against time you were using anyway.
-    let upcoming = start(list[0]);
+    // The lookahead still earns its keep, but for prep rather than the model:
+    // photo N+1 is decoded while you crop photo N, so a batch never pauses
+    // between photos either.
+    const prep = (file: Blob) => {
+      const work = prepPhotoAsync(file);
+      work.catch(() => {});
+      return work;
+    };
+    let upcoming = prep(list[0]);
 
     for (let index = 0; index < list.length; index++) {
       if (abandoned.current) return;
 
       const current = upcoming;
-      upcoming = index + 1 < list.length ? start(list[index + 1]) : upcoming;
+      upcoming = index + 1 < list.length ? prep(list[index + 1]) : upcoming;
 
-      setStatus(detectEnabled ? 'Looking for the garment…' : 'Reading the photo…');
-      let analysis: PhotoAnalysis;
+      setStatus('Reading the photo…');
+      let base: Blob;
       try {
-        analysis = await current;
+        base = await current;
       } catch (err) {
         addEntry({
           key: crypto.randomUUID(),
@@ -130,18 +153,24 @@ export default function Add() {
         continue;
       }
 
+      // Started here and deliberately not awaited: the crop step goes up now.
+      const segmentation = startSegmentation(base);
+
       setStatus(null);
-      setCropTask({ analysis, index, total: list.length });
+      setCropTask({ base, segmentation, index, total: list.length });
       const decision = await awaitCrop();
       setCropTask(null);
       if (decision === 'abandoned') return; // screen left mid-import
       if (decision === 'discard') continue; // wrong photo — never saved at all
 
-      setStatus('Saving…');
       try {
-        const photo = await finishPhotoAsync(analysis, decision);
+        // Saved from the plain photo, immediately. This is the whole point:
+        // the item exists and is tagagble within a frame or two of the tap.
+        const photo = await finishPhotoAsync(base, decision);
         const item = await createItem({ category: lastCategory.current, ...photo });
         addEntry({ key: item.id, itemId: item.id });
+        // And the cutout catches up in its own time.
+        if (wantsModel) void applyCutoutWhenReady(item.id, base, decision, segmentation);
       } catch (err) {
         addEntry({
           key: crypto.randomUUID(),
@@ -226,9 +255,8 @@ export default function Add() {
       {cropTask && (
         <CropStep
           key={cropTask.index}
-          image={cropTask.analysis.base}
-          initialCrop={cropTask.analysis.suggestedCrop}
-          detected={cropTask.analysis.detected}
+          image={cropTask.base}
+          segmentation={cropTask.segmentation}
           index={cropTask.index}
           total={cropTask.total}
           onConfirm={(crop) => cropResolver.current?.(crop)}
@@ -372,6 +400,42 @@ function TagCard({
           ))}
     </li>
   );
+}
+
+/**
+ * Apply the cutout to an already-saved item, once the model gets there.
+ *
+ * Deliberately module-level rather than a method on the component: this
+ * routinely outlives the Add screen. Someone imports a garment, taps Done and
+ * walks to the wardrobe long before ~9.5s of inference is finished, and the
+ * background should still come off. It is only a database write, so nothing
+ * needs the screen to still be mounted — the wardrobe's live query picks the
+ * change up wherever the user happens to be.
+ *
+ * Every failure is silent by design (spec R3). The item is already saved and
+ * already correct with its plain photo; a cutout that could not be produced
+ * is a missing nicety, not something worth interrupting anyone over.
+ */
+async function applyCutoutWhenReady(
+  itemId: string,
+  base: Blob,
+  crop: CropRect,
+  segmentation: Promise<PhotoSegmentation>,
+): Promise<void> {
+  try {
+    const { cutout } = await segmentation;
+    if (!cutout) return;
+    const photo = await finishPhotoAsync(base, crop, cutout);
+    if (!photo.hasCutout) return;
+    await updateItem(itemId, {
+      image: photo.image,
+      thumb: photo.thumb,
+      hasCutout: true,
+      dominantColor: photo.dominantColor,
+    });
+  } catch {
+    // Keeps the plain photo, which was never wrong.
+  }
 }
 
 /** Matches the `Top 14` shape `suggestName` produces — anything else is the user's own wording. */

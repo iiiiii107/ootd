@@ -229,6 +229,20 @@ Nothing on this screen needs an explicit save — items are written the moment a
 
 **Tagging is never mandatory beyond category.** Items save the moment the crop is confirmed, so walking away mid-tagging loses nothing, and anything skipped appears under the `needs tagging` filter to be finished later on the sofa. Category carries forward to the next photo, because five tops in a row usually share everything.
 
+### 7.7 Import must not wait for the model
+
+Segmentation is ~9.5s and **cannot be made faster**. Measured: 384px input 9.1s, 512px 9.6s, 768px 9.5s, 1200px 9.9s — the model resizes to its own fixed resolution, so a smaller image buys nothing. WebGPU came within a second of the CPU path. With both photo features off the entire pipeline is 74ms, which means the model is 99.3% of import.
+
+So the pipeline is split into three, and only the fast part is ever awaited:
+
+- **prep** — decode and resize, ~60ms. The crop step waits for this and nothing else.
+- **segment** — the model. Started alongside prep, never awaited on any path a person is watching. The crop box starts as the whole frame and snaps to the garment if the answer arrives before the box has been touched; a box already dragged by hand is never overridden.
+- **finish** — apply the chosen crop, ~30ms. The garment is saved from its plain photo here and appears in the wardrobe immediately.
+
+The cutout is applied to the saved item **afterwards**, whenever it lands, as a plain database write — so it survives leaving the Add screen, which routinely happens well before 9.5s is up. Every failure in that deferred path is silent (R3): the item is already saved and already correct.
+
+Measured end to end: **10.3s → 95ms** to import one garment.
+
 ### 7.6 ootds — the wear log
 
 Two things live on the Outfits screen, related but not the same: **recently worn** (the default) and **saved**.

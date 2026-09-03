@@ -1,6 +1,7 @@
-import { useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 
 import { FULL_FRAME, type CropRect } from '../images/crop';
+import type { PhotoSegmentation } from '../images/pipeline';
 import { useObjectUrl } from '../lib/useObjectUrl';
 
 type DragMode = 'move' | 'nw' | 'ne' | 'sw' | 'se';
@@ -22,37 +23,63 @@ interface Drag {
  * already the one you meant, so nothing has to be re-cropped later and no
  * uncropped original sits around eating storage.
  *
- * When automatic detection is on and finds a garment, the box arrives already
- * around it and this step is usually one tap. That's the point: the crop step
- * has to be skippable-by-default or a twenty-photo import becomes a chore.
+ * When automatic detection is on and finds a garment, the box snaps around it
+ * and this step is usually one tap. That's the point: the crop step has to be
+ * skippable-by-default or a twenty-photo import becomes a chore.
+ *
+ * The detected box *arrives late* — the model takes ~9.5s and this screen no
+ * longer waits for it, because waiting is what made importing one garment
+ * take ten seconds. So the box starts as the whole frame and moves when the
+ * answer comes in. It moves only if the box has not been touched: silently
+ * yanking the rectangle out from under someone who is already dragging it
+ * would be far worse than never having offered.
  */
 export function CropStep({
   image,
-  initialCrop,
-  detected,
+  segmentation,
   index,
   total,
   onConfirm,
   onDiscard,
 }: {
   image: Blob;
-  initialCrop: CropRect;
-  detected: boolean;
+  segmentation: Promise<PhotoSegmentation>;
   index: number;
   total: number;
   onConfirm: (crop: CropRect) => void;
   onDiscard: () => void;
 }) {
   const url = useObjectUrl(image);
-  const [rect, setRect] = useState<CropRect>(initialCrop);
+  const [rect, setRect] = useState<CropRect>(FULL_FRAME);
+  const [detected, setDetected] = useState(false);
+  const [waitingForModel, setWaitingForModel] = useState(true);
   const frameRef = useRef<HTMLDivElement>(null);
   const dragRef = useRef<Drag | null>(null);
+  // Set the moment the box is dragged, and never cleared. The detected box is
+  // a suggestion, and a suggestion that overrides what you have already done
+  // by hand is not a suggestion.
+  const touched = useRef(false);
+
+  useEffect(() => {
+    let live = true;
+    void segmentation.then((result) => {
+      if (!live) return;
+      setWaitingForModel(false);
+      if (!result.detected || touched.current) return;
+      setRect(result.suggestedCrop);
+      setDetected(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, [segmentation]);
 
   function begin(event: ReactPointerEvent, mode: DragMode) {
     const frame = frameRef.current;
     if (!frame) return;
     event.preventDefault();
     event.stopPropagation();
+    touched.current = true;
     const bounds = frame.getBoundingClientRect();
     dragRef.current = {
       mode,
@@ -91,6 +118,13 @@ export function CropStep({
       <div className="flex items-center justify-between border-b border-rule px-5 py-3">
         <p className="text-[12px] text-muted">
           crop {total > 1 ? `${index + 1} of ${total}` : ''}
+          {/*
+            Says what the box is doing rather than blocking on it. "Looking"
+            is not a please-wait: saving now is perfectly fine, and the
+            background comes off afterwards either way.
+          */}
+          {waitingForModel && <span className="ml-1 opacity-70">· looking for the garment</span>}
+          {detected && <span className="ml-1 opacity-70">· found it</span>}
         </p>
         <button
           type="button"

@@ -1,5 +1,5 @@
 import type { CropRect } from './crop';
-import type { AnalyzeOptions, ImportedPhoto, PhotoAnalysis } from './pipeline';
+import type { AnalyzeOptions, ImportedPhoto, PhotoSegmentation } from './pipeline';
 import type { WorkerRequest, WorkerRequestBody, WorkerResponse } from './pipeline.worker';
 
 /**
@@ -53,10 +53,20 @@ function send<T>(request: WorkerRequestBody): Promise<T> {
   });
 }
 
-export function analyzePhotoAsync(file: Blob, options: AnalyzeOptions): Promise<PhotoAnalysis> {
-  return send<PhotoAnalysis>({ kind: 'analyze', file, options });
+/** Decode and resize — fast, and the only step the crop screen waits on. */
+export function prepPhotoAsync(file: Blob): Promise<Blob> {
+  return send<Blob>({ kind: 'prep', file });
 }
 
-export function finishPhotoAsync(analysis: PhotoAnalysis, crop: CropRect): Promise<ImportedPhoto> {
-  return send<ImportedPhoto>({ kind: 'finish', analysis, crop });
+/** The ~9.5s model pass. Start it, don't await it on any path a person is watching. */
+export function segmentPhotoAsync(base: Blob, options: AnalyzeOptions): Promise<PhotoSegmentation> {
+  return send<PhotoSegmentation>({ kind: 'segment', base, options });
+}
+
+export function finishPhotoAsync(
+  base: Blob,
+  crop: CropRect,
+  cutout: Blob | null = null,
+): Promise<ImportedPhoto> {
+  return send<ImportedPhoto>({ kind: 'finish', base, crop, cutout });
 }
