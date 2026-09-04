@@ -16,7 +16,7 @@ import type { CustomTag, Item, Wear } from './types';
  * Archived items are included; "no longer owned" is still worth keeping.
  */
 
-type ManifestItem = Omit<Item, 'image' | 'thumb'>;
+type ManifestItem = Omit<Item, 'image' | 'thumb' | 'originalImage'>;
 
 interface Manifest {
   /**
@@ -40,7 +40,7 @@ export async function exportBackup(): Promise<Blob> {
   const manifest: Manifest = {
     version: 2,
     exportedAt: Date.now(),
-    items: items.map(({ image: _image, thumb: _thumb, ...rest }) => rest),
+    items: items.map(({ image: _image, thumb: _thumb, originalImage: _original, ...rest }) => rest),
     tags,
     // Plain JSON, no blobs: the log is references and dates. Without it a
     // restore would bring the wardrobe back and silently lose every ootd.
@@ -57,6 +57,11 @@ export async function exportBackup(): Promise<Blob> {
     if (!item.image || !item.thumb) continue;
     files[`images/${item.id}.jpg`] = new Uint8Array(await item.image.arrayBuffer());
     files[`thumbs/${item.id}.jpg`] = new Uint8Array(await item.thumb.arrayBuffer());
+    // The pre-cutout copy, where one was kept — without it a restored
+    // wardrobe could never put a background back.
+    if (item.originalImage) {
+      files[`originals/${item.id}.jpg`] = new Uint8Array(await item.originalImage.arrayBuffer());
+    }
   }
 
   const zipped = zipSync(files, { level: 6 });
@@ -87,14 +92,18 @@ export async function importBackup(file: Blob): Promise<ImportSummary> {
     // still mean a damaged archive, and that must not import silently.
     if (!image || !thumb) {
       if (meta.category === 'outfit' && meta.memberIds.length > 0) {
-        return { ...meta, image: null, thumb: null };
+        return { ...meta, image: null, thumb: null, originalImage: null };
       }
       throw new Error(`Backup is missing photos for "${meta.name}".`);
     }
+    const original = files[`originals/${meta.id}.jpg`];
     return {
       ...meta,
       image: new Blob([image as BlobPart], { type: 'image/jpeg' }),
       thumb: new Blob([thumb as BlobPart], { type: 'image/jpeg' }),
+      // Absent for anything whose background was never removed, and for
+      // archives written before originals were kept.
+      originalImage: original ? new Blob([original as BlobPart], { type: 'image/jpeg' }) : null,
     };
   });
 

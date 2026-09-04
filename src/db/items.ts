@@ -1,3 +1,4 @@
+import { cropToThumb } from '../images/cutout';
 import { db } from './schema';
 import type { Category, Item } from './types';
 
@@ -32,6 +33,8 @@ export async function createItem(input: NewItemInput): Promise<Item> {
     image: input.image,
     thumb: input.thumb,
     hasCutout: input.hasCutout ?? false,
+    // Nothing has been removed yet, so there is nothing to go back to.
+    originalImage: null,
     seasons: [],
     formality: null,
     location: null,
@@ -114,6 +117,29 @@ export async function trashItem(id: string): Promise<void> {
   });
 }
 
+/**
+ * Put the background back, from the copy kept when it was removed.
+ *
+ * The thumbnail is rebuilt rather than stored: it is derived, so keeping a
+ * second one would have doubled the cost of the feature for nothing.
+ *
+ * `originalImage` is cleared afterwards because the image *is* the original
+ * now — leaving it would be an identical second copy of the same photo. The
+ * background can be removed again by hand from the eraser, which keeps its
+ * own copy the same way.
+ */
+export async function restoreBackground(id: string): Promise<void> {
+  const item = await db.items.get(id);
+  if (!item?.originalImage) return;
+  const thumb = await cropToThumb(item.originalImage);
+  await updateItem(id, {
+    image: item.originalImage,
+    thumb,
+    hasCutout: false,
+    originalImage: null,
+  });
+}
+
 /** Saved outfits that would break if `itemId` were removed. Used to warn before trashing. */
 export async function outfitsReferencing(itemId: string): Promise<Item[]> {
   const outfits = await db.items.where('category').equals('outfit').toArray();
@@ -169,6 +195,7 @@ export async function createOutfitFromMembers(members: Item[], name?: string): P
     image: null,
     thumb: null,
     hasCutout: members.some((m) => m.hasCutout),
+    originalImage: null,
     seasons: [...new Set(members.flatMap((m) => m.seasons))],
     formality: firstNonNull(members.map((m) => m.formality)),
     location: firstNonNull(members.map((m) => m.location)),

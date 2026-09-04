@@ -5,7 +5,7 @@ import { CropStep } from '../components/CropStep';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { TagChipRow } from '../components/TagChipRow';
 import { useAutoDetectEnabled, useCutoutEnabled, useItem } from '../db/hooks';
-import { createItem, suggestName, updateItem } from '../db/items';
+import { createItem, getItem, suggestName, updateItem } from '../db/items';
 import type { Category } from '../db/types';
 import { FULL_FRAME, type CropRect } from '../images/crop';
 import type { PhotoSegmentation } from '../images/pipeline';
@@ -451,11 +451,21 @@ async function applyCutoutWhenReady(
     if (!cutout) return;
     const photo = await finishPhotoAsync(base, crop, cutout);
     if (!photo.hasCutout) return;
+
+    // Keep what is about to be replaced. Removal is destructive — the cut
+    // pixels are gone from the stored image — so this is the only thing that
+    // makes "put the background back" possible at all. Read the item first
+    // rather than assuming: a garment can be edited between being saved and
+    // the model finishing, ~9.5s later.
+    const current = await getItem(itemId);
+    if (!current) return;
+
     await updateItem(itemId, {
       image: photo.image,
       thumb: photo.thumb,
       hasCutout: true,
       dominantColor: photo.dominantColor,
+      originalImage: current.originalImage ?? current.image,
     });
   } catch {
     // Keeps the plain photo, which was never wrong.

@@ -180,7 +180,7 @@ export default function Wardrobe() {
       ) : visible && visible.length === 0 ? (
         <EmptyFilterState filters={filters} groups={groups} onChange={setFilters} />
       ) : (
-        <div className="wardrobe-grid grid gap-px">
+        <div className="wardrobe-grid grid gap-3">
           {visible?.map((item) => (
             <ItemTile
               key={item.id}

@@ -83,7 +83,7 @@ export function OutfitBuilder({
             Nothing in the wardrobe to build from yet.
           </p>
         ) : (
-          <div className="wardrobe-grid grid gap-px">
+          <div className="wardrobe-grid grid gap-3">
             {items?.map((item) => (
               <PickTile
                 key={item.id}
@@ -108,8 +108,8 @@ function PickTile({ item, order, onTap }: { item: Item; order: number; onTap: ()
   const chosen = order >= 0;
 
   return (
-    <button type="button" onClick={onTap} aria-pressed={chosen} className="tile relative aspect-square bg-paper">
-      <ItemImage item={item} className="h-full w-full object-cover" />
+    <button type="button" onClick={onTap} aria-pressed={chosen} className="tile relative aspect-[3/4]">
+      <ItemImage item={item} className="h-full w-full object-contain" />
       {chosen && (
         <span
           className="absolute top-1.5 left-1.5 flex h-5 w-5 items-center justify-center rounded-full text-[11px]"

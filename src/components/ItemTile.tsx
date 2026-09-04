@@ -58,9 +58,17 @@ export function ItemTile({
       onPointerUp={cancelPress}
       onPointerLeave={cancelPress}
       onClick={handleClick}
-      className="tile relative aspect-square bg-paper"
+      className="tile relative aspect-[3/4]"
     >
-      <ItemImage item={item} className="h-full w-full object-cover" />
+      {/*
+        `contain`, not `cover`. A square tile cropping a portrait photograph
+        showed a slice of each garment and turned the grid into a wall of
+        identical rectangles — the clothes were the one thing you couldn't
+        see. Letting each photo keep its own proportions means a long coat
+        reads as a long coat, and the paper between them is the page rather
+        than a tile.
+      */}
+      <ItemImage item={item} className="h-full w-full object-contain" />
       {item.inWash && (
         <span
           className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-accent"

@@ -45,6 +45,8 @@ The randomizer's "wearing this today" now says so. It always did write correctly
 
 **Thumbnails that heal themselves.** Object URLs are cached and long-lived so editing doesn't re-decode the grid, but on a real phone a cached URL can stop resolving while the photo behind it is perfectly fine — the tile shows a broken-image mark for something that was never lost. Every garment picture now renders through one component that notices, throws the dead URL away and asks for a new one.
 
+**Background removal can be undone.** The photo as it was is kept when the background comes off, so "put the background back" is a real option rather than a re-import. It only works going forward — a garment cut before this existed has no copy to return to.
+
 **Erasing background by hand.** The model gets it almost right often enough that an escape hatch beats another threshold. Open any garment and tidy it up: tap a leftover patch and the whole connected region of that colour goes at once, or brush away background fused to the garment. Editing touches only the alpha channel, which is what makes undo cheap enough to keep eight steps of it on a phone.
 
 **Make it yours.** Settings carries the family's appearance panel, the same one cookbook and the two spare apps have: theme (auto, light, dark), five ready-made palettes, a colour picker for each of the four interface colours *and* each of the six tag hues, a choice of face for headings and body, and how many garments sit across the grid on a phone. Every one of those is written onto `<html>` as a custom property, so nothing else in the app reads a setting to decide how to look — which is what makes any of it a feature rather than a special case in each component.

@@ -8,6 +8,7 @@ import {
   toggleWash,
   trashItem,
   updateItem,
+  restoreBackground,
 } from '../db/items';
 import { logWearToday } from '../db/wears';
 import { BackgroundEraser } from './BackgroundEraser';
@@ -154,13 +155,29 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
           belongs on the garments it is composed from anyway.
         */}
         {item.image && item.memberIds.length === 0 && (
-          <button
-            type="button"
-            onClick={() => setErasing(true)}
-            className="rounded-chip min-h-9 w-fit border border-rule px-2.5 text-[12px] text-ink"
-          >
-            {item.hasCutout ? 'tidy up the background' : 'remove the background'}
-          </button>
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setErasing(true)}
+              className="rounded-chip min-h-9 border border-rule px-2.5 text-[12px] text-ink"
+            >
+              {item.hasCutout ? 'tidy up the background' : 'remove the background'}
+            </button>
+            {/*
+              Only offered when there is genuinely something to go back to.
+              A garment imported before the original was kept has no copy, and
+              a button that silently did nothing would be worse than none.
+            */}
+            {item.originalImage && (
+              <button
+                type="button"
+                onClick={() => void restoreBackground(item.id)}
+                className="rounded-chip min-h-9 border border-rule px-2.5 text-[12px] text-ink"
+              >
+                put the background back
+              </button>
+            )}
+          </div>
         )}
 
         {groups.map((group) => (

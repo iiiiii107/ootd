@@ -181,7 +181,17 @@ export function BackgroundEraser({ item, onClose }: { item: Item; onClose: () =>
       const thumb = await cropToThumb(image, true);
       // hasCutout regardless of how it got here: the stored photo now has
       // transparency, and that is what the flag actually means.
-      await updateItem(item.id, { image, thumb, hasCutout: true });
+      //
+      // Erasing is as destructive as the model's own pass, so it keeps the
+      // same copy of what it replaced — but only the first time, or a second
+      // round of tidying would overwrite the true original with an
+      // already-cut version and quietly make the background unrecoverable.
+      await updateItem(item.id, {
+        image,
+        thumb,
+        hasCutout: true,
+        originalImage: item.originalImage ?? item.image,
+      });
       onClose();
     } finally {
       setSaving(false);

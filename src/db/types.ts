@@ -44,6 +44,20 @@ export interface Item {
   thumb: Blob | null;
   /** Whether background removal succeeded (spec Phase 5). Always false until then. */
   hasCutout: boolean;
+  /**
+   * The photograph as it was before the background was taken off, kept so it
+   * can be put back.
+   *
+   * Removal is destructive — the cut pixels are gone from `image`, and no
+   * amount of cleverness recovers them — so the only way to offer "put the
+   * background back" is to have kept the original. Null when there is nothing
+   * to go back to: the background was never removed, or the item predates
+   * this being kept.
+   *
+   * Only the full-size version is held. The thumbnail is derived and cheap to
+   * rebuild, so storing it too would be a second copy for nothing.
+   */
+  originalImage: Blob | null;
   /** Multi-select. Empty means untagged, not "no season". */
   seasons: Season[];
   formality: Formality | null;

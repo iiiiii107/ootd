@@ -13,6 +13,7 @@ function makeItem(overrides: Partial<Item> = {}): Item {
     image: new Blob(),
     thumb: new Blob(),
     hasCutout: false,
+    originalImage: null,
     seasons: [],
     formality: null,
     location: null,

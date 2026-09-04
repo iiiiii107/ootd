@@ -256,6 +256,10 @@ Two tools, because leftover background comes in two shapes:
 
 Editing touches **the alpha channel only**, never colour. That makes an undo step one byte per pixel instead of four — the difference between an affordable history on a phone and none — and makes every erase exactly reversible.
 
+**Background removal is reversible.** The photograph as it was before the cut is kept in `originalImage`, and "put the background back" swaps it in and rebuilds the thumbnail. This is the only way the option can exist: removal is destructive, the cut pixels are gone from `image`, and nothing recovers them after the fact. Only the full-size copy is kept — the thumbnail is derived and cheap to rebuild, so storing it too would be a second copy for nothing. The eraser keeps the same copy, but only on its first pass, or a second round of tidying would overwrite the true original with an already-cut version.
+
+Backups carry originals, and `originalImage` is cleared on restore, since the image *is* the original then.
+
 **A large removal warns rather than being refused.** A share-of-the-whole-image cap was tried first and was worse than nothing: a garment occupying a fifth of the frame sat under any sensible cap, so tapping it erased the lot silently, while a genuinely large background would have been blocked for no reason — it fired in exactly the wrong cases. The share is now measured against *visible* pixels, and a big one only says so. Undo is the safety net; a tool that sometimes refuses a legitimate tap is worse than one that is simply reversible.
 
 ### 7.9 A broken thumbnail is a broken handle, not a lost photo
@@ -295,6 +299,8 @@ Manage tag groups · **Export backup** · **Import backup** · storage used · a
 Minimal but fashionable, meaning: the clothes are the only colour on screen.
 
 - **The app shell is exactly the viewport, and only the middle scrolls.** `h-dvh` with `overflow-hidden`, safe-area insets on the shell rather than on `body`. A minimum height let the shell grow past the screen and take the tab bar with it, and insets on a full-height body added to the viewport instead of insetting within it — pushing the bar off by the height of the home bar. The tab bar is always visible.
+
+- **Garments keep their own proportions in the grid.** Tiles are portrait and the photograph is contained rather than cropped to fill: a square tile cropping a portrait photo showed a slice of each garment and turned the wardrobe into a wall of identical rectangles, with the clothes the one thing you could not see. Real gaps rather than hairlines, so pieces sit on the page instead of tiling it.
 
 - **Three garments across the wardrobe on a phone**, and outfits the same. Outfit composites are portrait (2:3), and each member is cropped to its cell's shape before drawing rather than squeezed into it — a square source drawn into a half-height cell is what made two-piece outfits look squashed.
 
