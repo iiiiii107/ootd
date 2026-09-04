@@ -1,5 +1,10 @@
 import type { CropRect } from './crop';
-import type { AnalyzeOptions, ImportedPhoto, PhotoSegmentation } from './pipeline';
+import type {
+  AnalyzeOptions,
+  ImportedPhoto,
+  PhotoSegmentation,
+  PreparedPhoto,
+} from './pipeline';
 import type { WorkerRequest, WorkerRequestBody, WorkerResponse } from './pipeline.worker';
 
 /**
@@ -15,9 +20,40 @@ import type { WorkerRequest, WorkerRequestBody, WorkerResponse } from './pipelin
  * surfaces as a per-photo error instead of silently freezing the UI.
  */
 
-let worker: Worker | null | undefined;
+/**
+ * Two workers, and the reason is the whole point of this file.
+ *
+ * A worker handles one message at a time. With a single worker, tapping save
+ * queued the crop behind whatever segmentation was running — measured at
+ * **15ms on an idle worker, 7467ms while the model was going**. The model is
+ * started for every photo and runs ~9.5s, so that was very nearly always,
+ * which made "the garment saves the moment you tap save" true only in a test
+ * that had no model running. It was exactly that test.
+ *
+ * So the slow work gets its own worker and the fast work gets another. They
+ * are the same module: the segmentation runtime is behind a dynamic import
+ * (src/images/cutout.ts), as is the HEIC decoder, so the light worker never
+ * loads either and nothing is bundled twice.
+ */
+type Role = 'model' | 'light';
+
+interface Channel {
+  worker: Worker | null | undefined;
+  pending: Map<number, { resolve: (value: never) => void; reject: (error: Error) => void }>;
+  deaths: number;
+}
+
+const channels: Record<Role, Channel> = {
+  model: { worker: undefined, pending: new Map(), deaths: 0 },
+  light: { worker: undefined, pending: new Map(), deaths: 0 },
+};
+
+/** Only the model pass is slow; everything else goes to the light worker. */
+function roleFor(kind: WorkerRequestBody['kind']): Role {
+  return kind === 'segment' ? 'model' : 'light';
+}
+
 let nextId = 1;
-const pending = new Map<number, { resolve: (value: never) => void; reject: (error: Error) => void }>();
 
 /** Marks a rejection as "the worker died", which is the one case worth retrying. */
 class WorkerLost extends Error {
@@ -27,48 +63,51 @@ class WorkerLost extends Error {
 }
 
 /**
- * How many times the worker may die before the model is given up on for this
+ * How many times a worker may die before its work is given up on for this
  * session. A worker that dies once is bad luck — a phone reclaiming memory
- * while ~40MB of model and ~24MB of inference runtime are resident. A worker
- * that dies every time is a device that cannot run this model at all, and
- * retrying forever would cost a crash per photo while never succeeding.
+ * while tens of megabytes of model and inference runtime are resident. One
+ * that dies every time is a device that cannot run this at all, and retrying
+ * forever would cost a crash per photo while never succeeding.
  */
 const MAX_DEATHS = 3;
-let deaths = 0;
 
 /** True once this device has proved it cannot keep the model alive. */
 export function modelUnavailable(): boolean {
-  return deaths >= MAX_DEATHS;
+  return channels.model.deaths >= MAX_DEATHS;
 }
 
-function getWorker(): Worker | null {
-  if (worker !== undefined) return worker;
+function getWorker(role: Role): Worker | null {
+  const channel = channels[role];
+  if (channel.worker !== undefined) return channel.worker;
   try {
-    worker = new Worker(new URL('./pipeline.worker.ts', import.meta.url), { type: 'module' });
+    const worker = new Worker(new URL('./pipeline.worker.ts', import.meta.url), {
+      type: 'module',
+    });
+    channel.worker = worker;
     worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const message = event.data;
-      const entry = pending.get(message.id);
+      const entry = channel.pending.get(message.id);
       if (!entry) return;
-      pending.delete(message.id);
+      channel.pending.delete(message.id);
       if (message.ok) entry.resolve(message.result as never);
       else entry.reject(new Error(message.error));
     };
-    worker.onerror = handleDeath;
+    worker.onerror = () => handleDeath(role);
     // A module worker that fails to *load* — a bad chunk URL, a parse error —
     // reports through this rather than onerror, and used to leave every photo
     // hanging on a promise nobody would ever settle.
-    worker.onmessageerror = handleDeath;
+    worker.onmessageerror = () => handleDeath(role);
   } catch {
-    worker = null;
+    channel.worker = null;
   }
-  return worker;
+  return channel.worker;
 }
 
 /**
  * A dead worker takes every in-flight photo with it.
  *
- * Clearing `worker` here is the part that was missing: without it the dead
- * instance stayed cached, so every subsequent photo posted a message to a
+ * Clearing the reference is the part that was once missing: without it the
+ * dead instance stayed cached, so every subsequent photo posted a message to a
  * corpse and waited on a promise that could never settle. The first failure
  * showed an error; everything after it hung silently forever.
  *
@@ -76,20 +115,22 @@ function getWorker(): Worker | null {
  * browser cannot construct workers at all", which is permanent, while a death
  * is transient and the next call should build a fresh one.
  */
-function handleDeath(): void {
-  deaths++;
-  worker?.terminate();
-  worker = undefined;
-  for (const entry of pending.values()) entry.reject(new WorkerLost());
-  pending.clear();
+function handleDeath(role: Role): void {
+  const channel = channels[role];
+  channel.deaths++;
+  channel.worker?.terminate();
+  channel.worker = undefined;
+  for (const entry of channel.pending.values()) entry.reject(new WorkerLost());
+  channel.pending.clear();
 }
 
 function post<T>(request: WorkerRequestBody): Promise<T> {
-  const active = getWorker();
+  const role = roleFor(request.kind);
+  const active = getWorker(role);
   if (!active) return Promise.reject(new Error('Photo processing is unavailable in this browser.'));
   const id = nextId++;
   return new Promise<T>((resolve, reject) => {
-    pending.set(id, { resolve: resolve as (value: never) => void, reject });
+    channels[role].pending.set(id, { resolve: resolve as (value: never) => void, reject });
     active.postMessage({ ...request, id } as WorkerRequest);
   });
 }
@@ -105,13 +146,15 @@ async function send<T>(request: WorkerRequestBody): Promise<T> {
   try {
     return await post<T>(request);
   } catch (error) {
-    if (!(error instanceof WorkerLost) || modelUnavailable()) throw error;
+    const role = roleFor(request.kind);
+    if (!(error instanceof WorkerLost) || channels[role].deaths >= MAX_DEATHS) throw error;
     return post<T>(request);
   }
 }
 
-export function prepPhotoAsync(file: Blob): Promise<Blob> {
-  return send<Blob>({ kind: 'prep', file });
+/** Decode and resize — fast, and the only step the crop screen waits on. */
+export function prepPhotoAsync(file: Blob): Promise<PreparedPhoto> {
+  return send<PreparedPhoto>({ kind: 'prep', file });
 }
 
 /** The ~9.5s model pass. Start it, don't await it on any path a person is watching. */
@@ -119,10 +162,11 @@ export function segmentPhotoAsync(base: Blob, options: AnalyzeOptions): Promise<
   return send<PhotoSegmentation>({ kind: 'segment', base, options });
 }
 
+/** `source` is the full-resolution photo, not the working copy — see `finishPhoto`. */
 export function finishPhotoAsync(
-  base: Blob,
+  source: Blob,
   crop: CropRect,
   cutout: Blob | null = null,
 ): Promise<ImportedPhoto> {
-  return send<ImportedPhoto>({ kind: 'finish', base, crop, cutout });
+  return send<ImportedPhoto>({ kind: 'finish', source, crop, cutout });
 }

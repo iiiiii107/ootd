@@ -8,7 +8,7 @@ import { useAutoDetectEnabled, useCutoutEnabled, useItem, useSegmentationModel }
 import { createItem, getItem, suggestName, updateItem } from '../db/items';
 import type { Category } from '../db/types';
 import { FULL_FRAME, type CropRect } from '../images/crop';
-import type { PhotoSegmentation } from '../images/pipeline';
+import type { PhotoSegmentation, PreparedPhoto } from '../images/pipeline';
 import {
   finishPhotoAsync,
   modelUnavailable,
@@ -27,7 +27,10 @@ interface SavedEntry {
 }
 
 interface CropTask {
+  /** The 1200px working copy — the crop screen's backdrop. */
   base: Blob;
+  /** The full-resolution photo the saved image is actually cropped from. */
+  source: Blob;
   /** Resolves when the model is done. May well outlive the crop step. */
   segmentation: Promise<PhotoSegmentation>;
   index: number;
@@ -153,9 +156,9 @@ export default function Add() {
       upcoming = index + 1 < list.length ? prep(list[index + 1]) : upcoming;
 
       setStatus('Reading the photo…');
-      let base: Blob;
+      let prepared: PreparedPhoto;
       try {
-        base = await current;
+        prepared = await current;
       } catch (err) {
         addEntry({
           key: crypto.randomUUID(),
@@ -164,11 +167,14 @@ export default function Add() {
         continue;
       }
 
+      const { base, source } = prepared;
+      // The model reads the 1200px copy; it downsamples to its own resolution
+      // anyway, so handing it the original would cost memory for nothing.
       // Started here and deliberately not awaited: the crop step goes up now.
       const segmentation = startSegmentation(base);
 
       setStatus(null);
-      setCropTask({ base, segmentation, index, total: list.length });
+      setCropTask({ base, source, segmentation, index, total: list.length });
       const decision = await awaitCrop();
       setCropTask(null);
       if (decision === 'abandoned') return; // screen left mid-import
@@ -177,11 +183,11 @@ export default function Add() {
       try {
         // Saved from the plain photo, immediately. This is the whole point:
         // the item exists and is tagagble within a frame or two of the tap.
-        const photo = await finishPhotoAsync(base, decision);
+        const photo = await finishPhotoAsync(source, decision);
         const item = await createItem({ category: lastCategory.current, ...photo });
         addEntry({ key: item.id, itemId: item.id });
         // And the cutout catches up in its own time.
-        if (wantsModel) void applyCutoutWhenReady(item.id, base, decision, segmentation);
+        if (wantsModel) void applyCutoutWhenReady(item.id, source, decision, segmentation);
       } catch (err) {
         addEntry({
           key: crypto.randomUUID(),
@@ -443,14 +449,14 @@ function TagCard({
  */
 async function applyCutoutWhenReady(
   itemId: string,
-  base: Blob,
+  source: Blob,
   crop: CropRect,
   segmentation: Promise<PhotoSegmentation>,
 ): Promise<void> {
   try {
     const { cutout } = await segmentation;
     if (!cutout) return;
-    const photo = await finishPhotoAsync(base, crop, cutout);
+    const photo = await finishPhotoAsync(source, crop, cutout);
     if (!photo.hasCutout) return;
 
     // Keep what is about to be replaced. Removal is destructive — the cut

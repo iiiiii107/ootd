@@ -1,8 +1,20 @@
 import { extractDominantColor } from './color';
-import { FULL_FRAME, cropToBlob, detectSubjectBounds, type CropRect } from './crop';
+
+/** Matches src/images/process.ts — the ceiling on a stored photo's longest edge. */
+const MAX_EDGE = 1200;
+const JPEG_QUALITY = 0.82;
+
+import {
+  FULL_FRAME,
+  cropAndResize,
+  cropWithMask,
+  detectSubjectBounds,
+  type CropRect,
+} from './crop';
 import { cleanMask, cropToThumb, segment, type ModelChoice } from './cutout';
+import { encodeWithAlpha } from './encode';
 import { ensureJpeg } from './decode';
-import { processImage } from './process';
+import { makeWorkingCopy } from './process';
 
 export interface ImportedPhoto {
   image: Blob;
@@ -42,10 +54,25 @@ export interface PhotoSegmentation {
  * had finished. Segmentation is now `segmentPhoto` below, started alongside
  * this and never waited on (src/screens/Add.tsx).
  */
-export async function prepPhoto(file: Blob): Promise<Blob> {
+export interface PreparedPhoto {
+  /** ~1200px. The crop screen's backdrop, and what the model reads. */
+  base: Blob;
+  /**
+   * The photograph at full resolution, kept for the moment of saving.
+   *
+   * The stored image is cropped from *this*, not from `base` — cropping the
+   * shrunken copy stored a garment at 360×480 where cropping the original
+   * gives 900×1200 from the same photo. Held only while the crop screen is
+   * open, and it is usually the picked file itself, already in memory; for a
+   * HEIC it is the converted JPEG, which would otherwise cost seconds of WASM
+   * decoding to produce a second time.
+   */
+  source: Blob;
+}
+
+export async function prepPhoto(file: Blob): Promise<PreparedPhoto> {
   const jpeg = await ensureJpeg(file);
-  const { image } = await processImage(jpeg);
-  return image;
+  return { base: await makeWorkingCopy(jpeg), source: jpeg };
 }
 
 /**
@@ -82,20 +109,24 @@ export async function segmentPhoto(base: Blob, options: AnalyzeOptions): Promise
 /**
  * Phase two: apply the chosen crop and produce what actually gets stored.
  *
- * The same normalised rect crops both the plain photo and the cutout, which
- * are pixel-aligned with each other, so the two stay in register no matter
- * which one ends up being saved.
+ * Cropped from the *original* photograph rather than the 1200px working copy,
+ * then scaled once. Cropping the shrunken copy stored a typical garment at
+ * 360×480; this gives 900×1200 from the same source, and encodes once instead
+ * of twice.
+ *
+ * The same normalised rect addresses the photo and the mask, which are
+ * pixel-aligned as fractions, so the two stay in register at either scale.
  *
  * Dominant colour is always sampled from the plain crop, never the cutout —
  * post-cutout, much of the frame is flat white background, which would skew
  * the average away from the garment itself.
  */
 export async function finishPhoto(
-  base: Blob,
+  source: Blob,
   crop: CropRect,
   cutout: Blob | null = null,
 ): Promise<ImportedPhoto> {
-  const plain = await cropToBlob(base, crop);
+  const plain = await cropAndResize(source, crop, MAX_EDGE, JPEG_QUALITY);
   const plainThumb = await cropToThumb(plain);
   const dominantColor = await extractDominantColor(plainThumb);
 
@@ -107,7 +138,11 @@ export async function finishPhoto(
     // Transparency is kept all the way through rather than flattened onto
     // white — a cutout should sit directly on the app's paper background
     // wherever it's shown, not carry a white rectangle around with it.
-    const image = await cropToBlob(cutout, crop, true);
+    // Colour from the full-resolution crop, alpha from the mask. Upscaling
+    // the mask *image* would have upscaled the garment's pixels with it,
+    // throwing away the detail this whole path exists to keep.
+    const canvas = await cropWithMask(source, cutout, crop);
+    const image = await encodeWithAlpha(canvas);
     const thumb = await cropToThumb(image, true);
     return { image, thumb, dominantColor, hasCutout: true };
   } catch {

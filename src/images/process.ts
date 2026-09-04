@@ -8,28 +8,23 @@
  */
 
 const MAX_EDGE = 1200;
+const WORKING_QUALITY = 0.92;
+
 /**
- * Longest edge of a thumbnail, and 512 rather than 400 because the grid is
- * read on a phone at 3× — a tile about 110pt wide is 330 real pixels, and a
- * portrait garment scaled to 400 on its long edge only has 300 across. 512
- * clears that with room for the two-across setting.
+ * The 1200px working copy: the crop screen's backdrop, and what the
+ * segmentation model reads. Never stored — the saved photo is cropped from
+ * the original (src/images/pipeline.ts) — so its quality is set for the
+ * model's benefit rather than to save space, and 0.92 keeps compression
+ * artefacts out of the mask for a copy that is discarded minutes later.
+ *
+ * It used to build a thumbnail here too, which was then thrown away unused:
+ * thumbnails come from the cropped photo, since a thumbnail of the *uncropped*
+ * frame would show whatever was around the garment.
  */
-const THUMB_EDGE = 512;
-const JPEG_QUALITY = 0.82;
-
-export interface ProcessedImage {
-  /** ~1200px longest edge, quality 0.82. */
-  image: Blob;
-  /** ~512px longest edge, the garment's own proportions kept. */
-  thumb: Blob;
-}
-
-export async function processImage(source: Blob): Promise<ProcessedImage> {
+export async function makeWorkingCopy(source: Blob): Promise<Blob> {
   const bitmap = await createImageBitmap(source);
   try {
-    const image = await resizeToBlob(bitmap, MAX_EDGE, JPEG_QUALITY);
-    const thumb = await resizeToBlob(bitmap, THUMB_EDGE, JPEG_QUALITY);
-    return { image, thumb };
+    return await resizeToBlob(bitmap, MAX_EDGE, WORKING_QUALITY);
   } finally {
     bitmap.close();
   }
@@ -46,10 +41,4 @@ function resizeToBlob(bitmap: ImageBitmap, maxEdge: number, quality: number): Pr
   return canvas.convertToBlob({ type: 'image/jpeg', quality });
 }
 
-/*
- * The thumbnail used to be a 400×400 centre crop, and that was a real loss:
- * a tall coat had its top and bottom cut off before it was ever displayed, so
- * letting the grid show a photo's own proportions achieved nothing — the
- * cropping had already happened here. A thumbnail is now just a small version
- * of the picture.
- */
+

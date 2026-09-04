@@ -24,7 +24,7 @@ import { finishPhoto, prepPhoto, segmentPhoto, type AnalyzeOptions } from './pip
 export type WorkerRequestBody =
   | { kind: 'prep'; file: Blob }
   | { kind: 'segment'; base: Blob; options: AnalyzeOptions }
-  | { kind: 'finish'; base: Blob; crop: CropRect; cutout: Blob | null };
+  | { kind: 'finish'; source: Blob; crop: CropRect; cutout: Blob | null };
 
 export type WorkerRequest = WorkerRequestBody & { id: number };
 
@@ -42,7 +42,7 @@ scope.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         ? await prepPhoto(message.file)
         : message.kind === 'segment'
           ? await segmentPhoto(message.base, message.options)
-          : await finishPhoto(message.base, message.crop, message.cutout);
+          : await finishPhoto(message.source, message.crop, message.cutout);
     scope.postMessage({ id: message.id, ok: true, result } satisfies WorkerResponse);
   } catch (error) {
     scope.postMessage({

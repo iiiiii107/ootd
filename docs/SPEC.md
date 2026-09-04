@@ -302,6 +302,12 @@ Minimal but fashionable, meaning: the clothes are the only colour on screen.
 
 - **The app shell is exactly the viewport, and only the middle scrolls.** `h-dvh` with `overflow-hidden`, safe-area insets on the shell rather than on `body`. A minimum height let the shell grow past the screen and take the tab bar with it, and insets on a full-height body added to the viewport instead of insetting within it — pushing the bar off by the height of the home bar. The tab bar is always visible.
 
+- **The stored photo is cropped from the original, then scaled — in that order.** Resizing to 1200px first and cropping out of *that* stored a typical garment crop at 360×480; cropping the original gives 900×1200 from the same photo, measured. It also encodes once instead of twice: the 1200px working copy was itself a JPEG generation, and it is never stored.
+
+  For a cutout, colour comes from the full-resolution crop and only the alpha from the mask. Upscaling the mask *image* would upscale the garment's pixels with it, throwing away the detail this exists to keep; the model's own resolution was always the limit on edge precision anyway.
+
+- **Two workers, not one.** A worker handles one message at a time, so a single worker queued the save behind whatever segmentation was running — measured at 15ms on an idle worker and **7467ms with the model going**. Since the model runs for every photo and takes ~9.5s, that was very nearly always, which made "saves the moment you tap save" true only of a test with no model running. The slow pass gets its own worker; the segmentation runtime and HEIC decoder are both dynamic imports, so the light worker loads neither and nothing is bundled twice.
+
 - **Thumbnails keep the photograph's proportions.** They were a 400×400 centre crop, which cut the top and bottom off a tall garment *before anything displayed it* — so letting the grid show a photo's own shape achieved nothing on its own, the loss had already happened. A thumbnail is now simply a small version of the picture, longest edge 512: a tile ~110pt wide is 330 real pixels at 3×, and a portrait garment scaled to 400 on its long edge only has 300 across.
 
 - **Garments keep their own proportions in the grid.** Tiles are portrait and the photograph is contained rather than cropped to fill: a square tile cropping a portrait photo showed a slice of each garment and turned the wardrobe into a wall of identical rectangles, with the clothes the one thing you could not see. Real gaps rather than hairlines, so pieces sit on the page instead of tiling it.

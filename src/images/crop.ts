@@ -43,6 +43,111 @@ const PADDING = 0.06;
 const MIN_AREA = 0.01;
 
 /** `alpha` keeps transparency (cutouts); otherwise the result is a JPEG like everything else. */
+/**
+ * Crop, then scale down — in that order, and that is the whole point.
+ *
+ * The app used to resize to 1200px and crop out of *that*, which meant a
+ * garment cropped to 40% of the frame was stored at 360×480 and looked soft
+ * the moment it filled a phone screen. Cropping the full-resolution photo
+ * first and scaling the result gives 900×1200 from the same source: 2.5×
+ * the detail in each direction, measured.
+ *
+ * It also encodes once rather than twice. The old path compressed to JPEG for
+ * the intermediate and again for the crop, and the intermediate was never
+ * stored — a whole generation of loss for nothing.
+ */
+export async function cropAndResize(
+  source: Blob,
+  rect: CropRect,
+  maxEdge: number,
+  quality: number,
+): Promise<Blob> {
+  const bitmap = await createImageBitmap(source);
+  try {
+    const { canvas } = drawCrop(bitmap, rect, maxEdge);
+    return await canvas.convertToBlob({ type: 'image/jpeg', quality });
+  } finally {
+    // Closed before anything else opens one: two full-resolution bitmaps at
+    // once is what kills the tab on a phone (spec R3).
+    bitmap.close();
+  }
+}
+
+/**
+ * The garment at full crop resolution, wearing the mask's transparency.
+ *
+ * Colour comes from the sharp crop and only the alpha comes from the cutout,
+ * because the mask is computed at 1200px and upscaling *it* would upscale the
+ * garment's pixels too — throwing away the detail this whole change exists to
+ * keep. A slightly soft mask edge on a sharp garment is the right way round;
+ * the model's resolution was always the limit on edge precision anyway.
+ */
+export async function cropWithMask(
+  source: Blob,
+  mask: Blob,
+  rect: CropRect,
+): Promise<OffscreenCanvas> {
+  const sourceBitmap = await createImageBitmap(source);
+  let width: number;
+  let height: number;
+  let canvas: OffscreenCanvas;
+  try {
+    const drawn = drawCrop(sourceBitmap, rect, MAX_EDGE);
+    canvas = drawn.canvas;
+    width = drawn.width;
+    height = drawn.height;
+  } finally {
+    sourceBitmap.close();
+  }
+
+  const maskBitmap = await createImageBitmap(mask);
+  try {
+    const maskCanvas = new OffscreenCanvas(width, height);
+    const maskCtx = maskCanvas.getContext('2d');
+    const ctx = canvas.getContext('2d');
+    if (!maskCtx || !ctx) throw new Error('2D canvas context unavailable');
+
+    const sx = Math.round(rect.x * maskBitmap.width);
+    const sy = Math.round(rect.y * maskBitmap.height);
+    const sw = Math.max(1, Math.round(rect.width * maskBitmap.width));
+    const sh = Math.max(1, Math.round(rect.height * maskBitmap.height));
+    maskCtx.drawImage(maskBitmap, sx, sy, sw, sh, 0, 0, width, height);
+
+    const target = ctx.getImageData(0, 0, width, height);
+    const from = maskCtx.getImageData(0, 0, width, height);
+    for (let i = 3; i < target.data.length; i += 4) target.data[i] = from.data[i];
+    ctx.putImageData(target, 0, 0);
+    return canvas;
+  } finally {
+    maskBitmap.close();
+  }
+}
+
+/** Shared geometry: crop `rect` out of `bitmap` and scale it to fit `maxEdge`. */
+function drawCrop(
+  bitmap: ImageBitmap,
+  rect: CropRect,
+  maxEdge: number,
+): { canvas: OffscreenCanvas; width: number; height: number } {
+  const sx = Math.round(rect.x * bitmap.width);
+  const sy = Math.round(rect.y * bitmap.height);
+  const sw = Math.max(1, Math.round(rect.width * bitmap.width));
+  const sh = Math.max(1, Math.round(rect.height * bitmap.height));
+
+  const scale = Math.min(1, maxEdge / Math.max(sw, sh));
+  const width = Math.max(1, Math.round(sw * scale));
+  const height = Math.max(1, Math.round(sh * scale));
+
+  const canvas = new OffscreenCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2D canvas context unavailable');
+  ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, width, height);
+  return { canvas, width, height };
+}
+
+/** The longest edge a stored photo is allowed — matches src/images/process.ts. */
+const MAX_EDGE = 1200;
+
 export async function cropToBlob(source: Blob, rect: CropRect, alpha = false): Promise<Blob> {
   const bitmap = await createImageBitmap(source);
   try {

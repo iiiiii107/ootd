@@ -86,15 +86,44 @@ describe('the photo worker', () => {
 
   it('gives up on the model once the device has proved it cannot hold it', async () => {
     // Retrying forever would cost a crash per photo and still produce nothing.
-    const { prepPhotoAsync, modelUnavailable } = await import('./pipelineClient');
+    const { segmentPhotoAsync, modelUnavailable } = await import('./pipelineClient');
     expect(modelUnavailable()).toBe(false);
 
     for (let i = 0; i < 3; i++) {
       deathsToStage = 2; // dies on the attempt *and* on the retry
-      await prepPhotoAsync(new Blob()).catch(() => undefined);
+      await segmentPhotoAsync(new Blob(), { detect: true, cutout: true }).catch(() => undefined);
     }
 
     expect(modelUnavailable()).toBe(true);
+  });
+
+  it('runs the model on a separate worker from the fast work', async () => {
+    // The bug this prevents: a worker handles one message at a time, so with a
+    // single worker a save queued behind ~9.5s of segmentation. Measured at
+    // 15ms idle and 7467ms with the model running.
+    const { prepPhotoAsync, segmentPhotoAsync } = await import('./pipelineClient');
+    await prepPhotoAsync(new Blob());
+    expect(built).toHaveLength(1);
+
+    await segmentPhotoAsync(new Blob(), { detect: true, cutout: true });
+    expect(built).toHaveLength(2);
+
+    // And each keeps using its own from then on.
+    await prepPhotoAsync(new Blob());
+    await segmentPhotoAsync(new Blob(), { detect: true, cutout: true });
+    expect(built).toHaveLength(2);
+  });
+
+  it('keeps the fast worker alive when the model worker dies', async () => {
+    // A phone reclaiming memory kills the model worker, which holds tens of
+    // megabytes. Importing must carry on regardless — without cutouts.
+    const { prepPhotoAsync, segmentPhotoAsync } = await import('./pipelineClient');
+    await prepPhotoAsync(new Blob());
+
+    deathsToStage = 2;
+    await segmentPhotoAsync(new Blob(), { detect: true, cutout: true }).catch(() => undefined);
+
+    await expect(prepPhotoAsync(new Blob())).resolves.toBe('did prep');
   });
 
   it('treats a load failure the same as a death', async () => {
