@@ -1,6 +1,6 @@
 import { extractDominantColor } from './color';
 import { FULL_FRAME, cropToBlob, detectSubjectBounds, type CropRect } from './crop';
-import { cleanMask, cropToThumb, segment } from './cutout';
+import { cleanMask, cropToThumb, segment, type ModelChoice } from './cutout';
 import { ensureJpeg } from './decode';
 import { processImage } from './process';
 
@@ -16,6 +16,8 @@ export interface AnalyzeOptions {
   detect: boolean;
   /** Store the background-removed version rather than the plain photo. */
   cutout: boolean;
+  /** Which segmentation model to use (spec §7.5). */
+  model?: ModelChoice;
 }
 
 /**
@@ -64,7 +66,7 @@ export async function segmentPhoto(base: Blob, options: AnalyzeOptions): Promise
     return { cutout: null, suggestedCrop: FULL_FRAME, detected: false };
   }
 
-  const raw = await segment(base);
+  const raw = await segment(base, options.model);
   // Cleaned once, here, so both the stored cutout and the detected bounds are
   // working from the same hardened mask rather than the model's raw haze.
   const cutout = raw ? await cleanMask(raw) : null;

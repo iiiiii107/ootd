@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router';
 import { CropStep } from '../components/CropStep';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { TagChipRow } from '../components/TagChipRow';
-import { useAutoDetectEnabled, useCutoutEnabled, useItem } from '../db/hooks';
+import { useAutoDetectEnabled, useCutoutEnabled, useItem, useSegmentationModel } from '../db/hooks';
 import { createItem, getItem, suggestName, updateItem } from '../db/items';
 import type { Category } from '../db/types';
 import { FULL_FRAME, type CropRect } from '../images/crop';
@@ -77,6 +77,7 @@ export default function Add() {
   // a change there takes effect on the very next photo, no remount needed.
   const cutoutEnabled = useCutoutEnabled();
   const detectEnabled = useAutoDetectEnabled();
+  const model = useSegmentationModel();
 
   // Carries the last-chosen category to the next photo, so five tops in a
   // row don't each need re-selecting (spec §7.4's "same tags as previous").
@@ -109,7 +110,7 @@ export default function Add() {
   async function handleFiles(files: FileList | null) {
     if (!files || files.length === 0) return;
     const list = Array.from(files);
-    const options = { detect: detectEnabled, cutout: cutoutEnabled };
+    const options = { detect: detectEnabled, cutout: cutoutEnabled, model };
     const wantsModel = detectEnabled || cutoutEnabled;
 
     /**

@@ -9,7 +9,9 @@ import {
   useArchivedItems,
   useAutoDetectEnabled,
   useCutoutEnabled,
+  useSegmentationModel,
   useTrashedItems,
+  SEGMENTATION_MODEL_KEY,
 } from '../db/hooks';
 import { archiveItem, deleteEverything, emptyTrash, hardDeleteItem, restoreItem } from '../db/items';
 import { setMeta } from '../db/meta';
@@ -93,6 +95,7 @@ function formatBytes(bytes: number): string {
 function CutoutSection() {
   const cutout = useCutoutEnabled();
   const detect = useAutoDetectEnabled();
+  const model = useSegmentationModel();
 
   return (
     <Section title="Photos">
@@ -113,12 +116,31 @@ function CutoutSection() {
         offLabel="Background removal off"
         onClick={() => void setMeta('backgroundRemovalEnabled', !cutout)}
       />
+      {(cutout || detect) && (
+        <>
+          <Segmented
+            label="Background quality"
+            options={[
+              { id: 'isnet_quint8', label: 'Standard' },
+              { id: 'isnet_fp16', label: 'Better' },
+            ]}
+            value={model}
+            onChange={(id) => void setMeta(SEGMENTATION_MODEL_KEY, id)}
+          />
+          <p className="text-[12px] leading-relaxed text-muted">
+            {model === 'isnet_fp16'
+              ? 'Cleaner edges around knit, lace and thin straps. The model file is 84MB instead of 42MB, downloaded once, and it needs about twice the memory — if backgrounds stop being removed on this phone, this is the first thing to turn back down.'
+              : 'A 42MB model, downloaded once. Edges around knit, lace and thin straps come out coarse; “Better” doubles the download and the memory it needs for a cleaner mask.'}
+          </p>
+        </>
+      )}
+
       <p className="text-[12px] leading-relaxed text-muted">
         Both of these run entirely on this device, and share the same work — having both on is no
         slower than one.{' '}
         {cutout || detect
-          ? 'The first photo downloads a one-time ~40MB model file.'
-          : 'With both off, no model is downloaded at all.'}
+          ? 'The model file downloads once, on the first photo.'
+          : 'With both off, no model is downloaded at all, and importing is near-instant.'}
       </p>
     </Section>
   );

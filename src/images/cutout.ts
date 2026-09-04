@@ -9,9 +9,9 @@
  * offline, slow network, an unsupported browser — falls back to the plain
  * photo automatically (spec R3's explicit mitigation), never a broken import.
  *
- * `isnet_quint8` is the ~40MB quantized model, not the ~80MB default —
- * matching spec R3's stated size and the smallest reasonable footprint on
- * an iPhone.
+ * Which model is a setting (spec §7.5), because the trade is real and not
+ * ours to make silently: 42MB and coarser, or 84MB and cleaner. See
+ * `DEFAULT_MODEL` below.
  *
  * The segmentation runs **once per photo** and its result is used for two
  * things: the cutout image itself, and the garment bounding box that
@@ -22,7 +22,7 @@
 import { encodeWithAlpha } from './encode';
 
 const TIMEOUT_MS = 30_000;
-const SIZE = 400; // matches the thumb pipeline's own crop size (spec §4.1)
+const THUMB_EDGE = 512; // matches the thumb pipeline (src/images/process.ts)
 const QUALITY = 0.82;
 
 /**
@@ -30,15 +30,34 @@ const QUALITY = 0.82;
  * `null` if it couldn't be done for any reason at all. Never rejects: every
  * caller's fallback is simply "carry on with the plain photo" (spec R3).
  */
-export async function segment(source: Blob): Promise<Blob | null> {
+export type ModelChoice = 'isnet_quint8' | 'isnet_fp16';
+
+/**
+ * The two models worth offering, measured from the CDN manifest:
+ *
+ *   isnet_quint8   42.3 MB   8-bit quantised — coarser masks, softest on memory
+ *   isnet_fp16     84.1 MB   half precision — cleaner edges, twice the download
+ *
+ * (There is a third, full-precision `isnet` at 168 MB. Four times the download
+ * for a mask on a garment photograph is not a trade worth offering.)
+ *
+ * Quantisation is exactly what costs edge quality: the mask's alpha is what
+ * gets rounded, so soft edges — knit, hair, lace, a thin strap — are where
+ * the small model gives itself away. But it is also half the memory, and this
+ * runs on phones that have been seen killing the worker outright under memory
+ * pressure, so the small one stays the default and the better one is a choice.
+ */
+export const DEFAULT_MODEL: ModelChoice = 'isnet_quint8';
+
+export async function segment(source: Blob, model: ModelChoice = DEFAULT_MODEL): Promise<Blob | null> {
   try {
-    return await withTimeout(runModel(source), TIMEOUT_MS);
+    return await withTimeout(runModel(source, model), TIMEOUT_MS);
   } catch {
     return null;
   }
 }
 
-async function runModel(source: Blob): Promise<Blob> {
+async function runModel(source: Blob, model: ModelChoice): Promise<Blob> {
   // Dynamically imported so the ~1MB library and its wasm loader don't sit
   // in the main bundle for a feature most imports won't use every time —
   // the same reasoning as the lazy HEIC decoder (src/images/decode.ts).
@@ -54,7 +73,7 @@ async function runModel(source: Blob): Promise<Blob> {
   // (src/images/pipeline.worker.ts) and one photo is analysed ahead of the
   // one being cropped. Left on the CPU backend: same speed, less surface.
   return imglyRemoveBackground(source, {
-    model: 'isnet_quint8',
+    model,
     output: { format: 'image/png' },
   });
 }
@@ -222,8 +241,13 @@ function solidRegions(
 }
 
 /**
- * Same centre-crop the plain pipeline uses (src/images/process.ts), so cutout
- * and plain thumbs are framed identically.
+ * A small version of the picture, keeping its proportions — the same shape the
+ * plain pipeline produces (src/images/process.ts), so cutout and plain thumbs
+ * are framed identically.
+ *
+ * This centre-cropped to a square until it was noticed that a tall garment
+ * was losing its top and bottom here, before anything had a chance to display
+ * it properly.
  *
  * `alpha` keeps the transparency rather than flattening it, so a cutout sits
  * on the app's own paper background wherever it's shown instead of carrying a
@@ -232,13 +256,13 @@ function solidRegions(
 export async function cropToThumb(image: Blob, alpha = false): Promise<Blob> {
   const bitmap = await createImageBitmap(image);
   try {
-    const side = Math.min(bitmap.width, bitmap.height);
-    const sx = (bitmap.width - side) / 2;
-    const sy = (bitmap.height - side) / 2;
-    const canvas = new OffscreenCanvas(SIZE, SIZE);
+    const scale = Math.min(1, THUMB_EDGE / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const canvas = new OffscreenCanvas(width, height);
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('2D canvas context unavailable');
-    ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, SIZE, SIZE);
+    ctx.drawImage(bitmap, 0, 0, width, height);
     return alpha ? await encodeWithAlpha(canvas) : await canvas.convertToBlob({ type: 'image/jpeg', quality: QUALITY });
   } finally {
     bitmap.close();

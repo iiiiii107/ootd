@@ -256,6 +256,8 @@ Two tools, because leftover background comes in two shapes:
 
 Editing touches **the alpha channel only**, never colour. That makes an undo step one byte per pixel instead of four — the difference between an affordable history on a phone and none — and makes every erase exactly reversible.
 
+**Which model is the user's choice, not ours.** Measured from the CDN manifest: `isnet_quint8` 42.3 MB, `isnet_fp16` 84.1 MB, `isnet` 168 MB. Quantisation is exactly what costs edge quality — the mask's alpha is what gets rounded — so knit, lace and thin straps are where the small model shows. But it is also half the memory, on a device that has been seen killing the photo worker outright under memory pressure, so the small one stays the default and the better one is offered in Settings with the trade stated plainly. The 168 MB model is not offered: four times the download for a mask on a garment photograph is not a trade worth putting in front of anyone.
+
 **Background removal is reversible.** The photograph as it was before the cut is kept in `originalImage`, and "put the background back" swaps it in and rebuilds the thumbnail. This is the only way the option can exist: removal is destructive, the cut pixels are gone from `image`, and nothing recovers them after the fact. Only the full-size copy is kept — the thumbnail is derived and cheap to rebuild, so storing it too would be a second copy for nothing. The eraser keeps the same copy, but only on its first pass, or a second round of tidying would overwrite the true original with an already-cut version.
 
 Backups carry originals, and `originalImage` is cleared on restore, since the image *is* the original then.
@@ -299,6 +301,8 @@ Manage tag groups · **Export backup** · **Import backup** · storage used · a
 Minimal but fashionable, meaning: the clothes are the only colour on screen.
 
 - **The app shell is exactly the viewport, and only the middle scrolls.** `h-dvh` with `overflow-hidden`, safe-area insets on the shell rather than on `body`. A minimum height let the shell grow past the screen and take the tab bar with it, and insets on a full-height body added to the viewport instead of insetting within it — pushing the bar off by the height of the home bar. The tab bar is always visible.
+
+- **Thumbnails keep the photograph's proportions.** They were a 400×400 centre crop, which cut the top and bottom off a tall garment *before anything displayed it* — so letting the grid show a photo's own shape achieved nothing on its own, the loss had already happened. A thumbnail is now simply a small version of the picture, longest edge 512: a tile ~110pt wide is 330 real pixels at 3×, and a portrait garment scaled to 400 on its long edge only has 300 across.
 
 - **Garments keep their own proportions in the grid.** Tiles are portrait and the photograph is contained rather than cropped to fill: a square tile cropping a portrait photo showed a slice of each garment and turned the wardrobe into a wall of identical rectangles, with the clothes the one thing you could not see. Real gaps rather than hairlines, so pieces sit on the page instead of tiling it.
 

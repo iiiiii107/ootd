@@ -1,6 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks';
 
 import { DEFAULT_APPEARANCE, type Appearance } from '../design/theme';
+import { DEFAULT_MODEL, type ModelChoice } from '../images/cutout';
 import { APPEARANCE_KEY } from './appearance';
 import { db } from './schema';
 import type { CustomTag, Item, Wear } from './types';
@@ -112,6 +113,21 @@ export function useCutoutEnabled(): boolean {
 export function useAutoDetectEnabled(): boolean {
   return useFlag('autoDetectEnabled');
 }
+
+/**
+ * Which segmentation model to download and run (spec §7.5). Defaults to the
+ * small one: it is half the memory, and this app has been seen losing its
+ * worker to memory pressure on a real phone.
+ */
+export function useSegmentationModel(): ModelChoice {
+  const value = useLiveQuery(async () => {
+    const entry = await db.meta.get(SEGMENTATION_MODEL_KEY);
+    return (entry?.value as ModelChoice | undefined) ?? DEFAULT_MODEL;
+  }, []);
+  return value ?? DEFAULT_MODEL;
+}
+
+export const SEGMENTATION_MODEL_KEY = 'segmentationModel';
 
 /** A boolean in `meta`, defaulting to on — both photo features are locked defaults (spec §2). */
 function useFlag(key: string): boolean {

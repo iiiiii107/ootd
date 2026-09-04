@@ -8,13 +8,19 @@
  */
 
 const MAX_EDGE = 1200;
-const THUMB_SIZE = 400;
+/**
+ * Longest edge of a thumbnail, and 512 rather than 400 because the grid is
+ * read on a phone at 3× — a tile about 110pt wide is 330 real pixels, and a
+ * portrait garment scaled to 400 on its long edge only has 300 across. 512
+ * clears that with room for the two-across setting.
+ */
+const THUMB_EDGE = 512;
 const JPEG_QUALITY = 0.82;
 
 export interface ProcessedImage {
   /** ~1200px longest edge, quality 0.82. */
   image: Blob;
-  /** 400×400 centre-cropped, for grid scrolling. */
+  /** ~512px longest edge, the garment's own proportions kept. */
   thumb: Blob;
 }
 
@@ -22,7 +28,7 @@ export async function processImage(source: Blob): Promise<ProcessedImage> {
   const bitmap = await createImageBitmap(source);
   try {
     const image = await resizeToBlob(bitmap, MAX_EDGE, JPEG_QUALITY);
-    const thumb = await cropThumbToBlob(bitmap, THUMB_SIZE, JPEG_QUALITY);
+    const thumb = await resizeToBlob(bitmap, THUMB_EDGE, JPEG_QUALITY);
     return { image, thumb };
   } finally {
     bitmap.close();
@@ -40,13 +46,10 @@ function resizeToBlob(bitmap: ImageBitmap, maxEdge: number, quality: number): Pr
   return canvas.convertToBlob({ type: 'image/jpeg', quality });
 }
 
-function cropThumbToBlob(bitmap: ImageBitmap, size: number, quality: number): Promise<Blob> {
-  const side = Math.min(bitmap.width, bitmap.height);
-  const sx = (bitmap.width - side) / 2;
-  const sy = (bitmap.height - side) / 2;
-  const canvas = new OffscreenCanvas(size, size);
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('2D canvas context unavailable');
-  ctx.drawImage(bitmap, sx, sy, side, side, 0, 0, size, size);
-  return canvas.convertToBlob({ type: 'image/jpeg', quality });
-}
+/*
+ * The thumbnail used to be a 400×400 centre crop, and that was a real loss:
+ * a tall coat had its top and bottom cut off before it was ever displayed, so
+ * letting the grid show a photo's own proportions achieved nothing — the
+ * cropping had already happened here. A thumbnail is now just a small version
+ * of the picture.
+ */
