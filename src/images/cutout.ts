@@ -94,8 +94,17 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-/** Alpha at or below this is haze, not garment — forced fully transparent. */
-const ALPHA_FLOOR = 96;
+/**
+ * Alpha at or below this is haze, not garment — forced fully transparent.
+ *
+ * Raised from 96 once the ramp was confined to the edge. It could not be
+ * raised before: the ramp ran over every pixel, so a higher floor would have
+ * started punching holes in garments the model was unsure about. Now that the
+ * inside is opaque by construction, this only ever trims the fringe, which is
+ * where the pale halo around a cutout comes from — those are background
+ * pixels showing through at partial alpha.
+ */
+const ALPHA_FLOOR = 128;
 /** Alpha at or above this is solidly garment — forced fully opaque. */
 const ALPHA_CEIL = 176;
 
@@ -135,8 +144,22 @@ export async function cleanMask(cutout: Blob): Promise<Blob> {
       for (let x = 0; x < width; x++) {
         const i = (y * width + x) * 4 + 3;
         const scanX = Math.min(scanWidth - 1, Math.floor((x * scanWidth) / width));
-        if (!keep.data[scanY * scanWidth + scanX]) {
+        const cell = scanY * scanWidth + scanX;
+        if (!keep.data[cell]) {
           data[i] = 0; // an island out in the background, not the garment
+          continue;
+        }
+        // Inside the garment, and therefore opaque — whatever the model
+        // thought. This is the fix for black and white garments alike coming
+        // out grey: the ramp below was applied to every pixel, so wherever the
+        // model was less than fully confident *within* a garment the garment
+        // itself turned translucent and the page showed through it. Measured
+        // at alpha 156 in the middle of a solid black tee: 61% opaque, and
+        // that is precisely enough beige to make black and white meet in the
+        // middle. The ramp exists to soften an edge, so it now only runs at
+        // the edge.
+        if (keep.interior[cell]) {
+          data[i] = 255;
           continue;
         }
         const alpha = data[i];
@@ -172,6 +195,41 @@ const REGION_SCAN_EDGE = 256;
 const REGION_MIN_SHARE = 0.02;
 
 /**
+ * Which kept cells are the garment's *inside*, as opposed to the band around
+ * its edge — a cell all of whose eight neighbours are also kept.
+ *
+ * This is what tells the alpha ramp where it may operate, and it is the fix
+ * for every garment coming out grey. The ramp ran over every pixel, so
+ * wherever the model was less than fully confident *within* a garment the
+ * garment itself turned translucent and the page showed through: measured at
+ * alpha 156 — 61% opaque — in the middle of a solid black tee, which is
+ * exactly enough beige to bring black and white to the same grey.
+ *
+ * Softening belongs at an edge. Inside, a garment is simply there.
+ */
+export function interiorCells(keep: Uint8Array, w: number, h: number): Uint8Array {
+  const interior = new Uint8Array(w * h);
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const i = y * w + x;
+      if (!keep[i]) continue;
+      interior[i] =
+        keep[i - 1] &&
+        keep[i + 1] &&
+        keep[i - w] &&
+        keep[i + w] &&
+        keep[i - w - 1] &&
+        keep[i - w + 1] &&
+        keep[i + w - 1] &&
+        keep[i + w + 1]
+          ? 1
+          : 0;
+    }
+  }
+  return interior;
+}
+
+/**
  * Marks which parts of the mask belong to a region big enough to be clothing.
  *
  * The model reliably leaves a few stray blobs floating in the background, and
@@ -186,7 +244,7 @@ function solidRegions(
   data: Uint8ClampedArray,
   width: number,
   height: number,
-): { data: Uint8Array; width: number; height: number } {
+): { data: Uint8Array; interior: Uint8Array; width: number; height: number } {
   const scale = Math.min(1, REGION_SCAN_EDGE / Math.max(width, height));
   const w = Math.max(1, Math.round(width * scale));
   const h = Math.max(1, Math.round(height * scale));
@@ -237,7 +295,8 @@ function solidRegions(
   for (let i = 0; i < keep.length; i++) {
     keep[i] = label[i] >= 0 && sizes[label[i]] >= threshold ? 1 : 0;
   }
-  return { data: keep, width: w, height: h };
+
+  return { data: keep, interior: interiorCells(keep, w, h), width: w, height: h };
 }
 
 /**

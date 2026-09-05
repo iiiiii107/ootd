@@ -45,6 +45,8 @@ The randomizer's "wearing this today" now says so. It always did write correctly
 
 **Thumbnails that heal themselves.** Object URLs are cached and long-lived so editing doesn't re-decode the grid, but on a real phone a cached URL can stop resolving while the photo behind it is perfectly fine — the tile shows a broken-image mark for something that was never lost. Every garment picture now renders through one component that notices, throws the dead URL away and asks for a new one.
 
+**Garments are the colour they actually are.** The mask's softening ramp ran over every pixel rather than just the edge, so a garment the model was unsure about came out semi-transparent and the page showed through it — which dragged a black tee and a white tee to the same grey. The inside of a mask is opaque now, and softening happens only where there is an edge to soften.
+
 **Crops keep their detail.** The app used to shrink a photo to 1200px and crop out of that, so a garment cropped to 40% of the frame was stored at 360×480 and looked soft the moment it filled the screen. It now crops the original and scales once — 900×1200 from the same photo — and compresses once instead of twice.
 
 **Sharper garments, and a quality choice.** Thumbnails used to be a square centre crop, so a tall coat lost its top and bottom before it was ever drawn — they keep the photo's proportions now. And which segmentation model runs is a setting: 42MB and coarser, or 84MB and cleaner around knit and thin straps. The small one stays the default because it is also half the memory, and this app has been seen losing its worker to memory pressure on a real phone.
