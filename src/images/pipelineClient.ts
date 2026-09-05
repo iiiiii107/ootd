@@ -37,9 +37,17 @@ import type { WorkerRequest, WorkerRequestBody, WorkerResponse } from './pipelin
  */
 type Role = 'model' | 'light';
 
+interface Pending {
+  resolve: (value: never) => void;
+  reject: (error: Error) => void;
+  /** Kept so the request can be sent again to a fresh worker if this one dies. */
+  request: WorkerRequestBody;
+  attempts: number;
+}
+
 interface Channel {
   worker: Worker | null | undefined;
-  pending: Map<number, { resolve: (value: never) => void; reject: (error: Error) => void }>;
+  pending: Map<number, Pending>;
   deaths: number;
 }
 
@@ -104,14 +112,19 @@ function getWorker(role: Role): Worker | null {
 }
 
 /**
- * A dead worker takes every in-flight photo with it.
+ * A worker died. Rebuild it and put its work back on, rather than failing it.
  *
- * Clearing the reference is the part that was once missing: without it the
- * dead instance stayed cached, so every subsequent photo posted a message to a
- * corpse and waited on a promise that could never settle. The first failure
- * showed an error; everything after it hung silently forever.
+ * This is the difference between one bad moment and a ruined import. A worker
+ * handles a queue, and the Add screen deliberately runs a photo ahead — so a
+ * single death used to reject *every* in-flight photo at once, which is what
+ * "four photos, four errors, nothing added" was. Re-posting them means a
+ * death costs a pause, not the batch.
  *
- * `undefined` rather than `null` deliberately — null is reserved for "this
+ * Once each: a request that dies on a fresh worker too is a request this
+ * device cannot process, and retrying it forever would crash the worker on a
+ * loop while never succeeding.
+ *
+ * `undefined` rather than `null` when clearing — null is reserved for "this
  * browser cannot construct workers at all", which is permanent, while a death
  * is transient and the next call should build a fresh one.
  */
@@ -120,8 +133,31 @@ function handleDeath(role: Role): void {
   channel.deaths++;
   channel.worker?.terminate();
   channel.worker = undefined;
-  for (const entry of channel.pending.values()) entry.reject(new WorkerLost());
+
+  const orphaned = [...channel.pending.entries()];
   channel.pending.clear();
+
+  for (const [, entry] of orphaned) {
+    if (entry.attempts >= 2 || channel.deaths >= MAX_DEATHS) {
+      entry.reject(new WorkerLost());
+      continue;
+    }
+    // A fresh worker is built lazily by the next post; if that fails too, this
+    // request comes back here with a higher count and is failed properly.
+    repost(role, entry);
+  }
+}
+
+/** Put an orphaned request onto a new worker, keeping the caller's promise. */
+function repost(role: Role, entry: Pending): void {
+  const active = getWorker(role);
+  if (!active) {
+    entry.reject(new Error('Photo processing is unavailable in this browser.'));
+    return;
+  }
+  const id = nextId++;
+  channels[role].pending.set(id, { ...entry, attempts: entry.attempts + 1 });
+  active.postMessage({ ...entry.request, id } as WorkerRequest);
 }
 
 function post<T>(request: WorkerRequestBody): Promise<T> {
@@ -130,26 +166,23 @@ function post<T>(request: WorkerRequestBody): Promise<T> {
   if (!active) return Promise.reject(new Error('Photo processing is unavailable in this browser.'));
   const id = nextId++;
   return new Promise<T>((resolve, reject) => {
-    channels[role].pending.set(id, { resolve: resolve as (value: never) => void, reject });
+    channels[role].pending.set(id, {
+      resolve: resolve as (value: never) => void,
+      reject,
+      request,
+      attempts: 1,
+    });
     active.postMessage({ ...request, id } as WorkerRequest);
   });
 }
 
 /**
- * Send, and rebuild the worker once if it dies mid-request.
- *
- * One retry, not a loop: the common case is a single collapse under memory
- * pressure that a fresh worker survives, and a device that genuinely cannot
- * run this should fail quickly rather than crash repeatedly.
+ * Send. Recovery from a death happens in `handleDeath`, which re-posts the
+ * work onto a fresh worker rather than failing it — so by the time a
+ * `WorkerLost` reaches here it has already been retried and is final.
  */
-async function send<T>(request: WorkerRequestBody): Promise<T> {
-  try {
-    return await post<T>(request);
-  } catch (error) {
-    const role = roleFor(request.kind);
-    if (!(error instanceof WorkerLost) || channels[role].deaths >= MAX_DEATHS) throw error;
-    return post<T>(request);
-  }
+function send<T>(request: WorkerRequestBody): Promise<T> {
+  return post<T>(request);
 }
 
 /** Decode and resize — fast, and the only step the crop screen waits on. */

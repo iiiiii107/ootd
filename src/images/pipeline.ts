@@ -58,21 +58,23 @@ export interface PreparedPhoto {
   /** ~1200px. The crop screen's backdrop, and what the model reads. */
   base: Blob;
   /**
-   * The photograph at full resolution, kept for the moment of saving.
+   * The decoded JPEG, but **only when decoding actually produced a new blob**
+   * — that is, for a HEIC. Null for an ordinary photo.
    *
-   * The stored image is cropped from *this*, not from `base` — cropping the
-   * shrunken copy stored a garment at 360×480 where cropping the original
-   * gives 900×1200 from the same photo. Held only while the crop screen is
-   * open, and it is usually the picked file itself, already in memory; for a
-   * HEIC it is the converted JPEG, which would otherwise cost seconds of WASM
-   * decoding to produce a second time.
+   * The stored image is cropped from the full-resolution original, so the
+   * caller needs one; but for a JPEG `ensureJpeg` hands back the very file it
+   * was given, and returning it meant posting a multi-megabyte photo back
+   * across the worker boundary and holding a second reference to it for the
+   * life of the crop screen. The caller already has that file. Only the HEIC
+   * conversion is worth carrying, because reproducing it costs seconds of
+   * WASM decoding.
    */
-  source: Blob;
+  converted: Blob | null;
 }
 
 export async function prepPhoto(file: Blob): Promise<PreparedPhoto> {
   const jpeg = await ensureJpeg(file);
-  return { base: await makeWorkingCopy(jpeg), source: jpeg };
+  return { base: await makeWorkingCopy(jpeg), converted: jpeg === file ? null : jpeg };
 }
 
 /**

@@ -114,6 +114,36 @@ describe('the photo worker', () => {
     expect(built).toHaveLength(2);
   });
 
+  it('does not fail the whole queue when the worker dies mid-batch', async () => {
+    // The reported failure: four photos picked, one worker death, and all four
+    // came back "Photo processing stopped unexpectedly" with nothing added.
+    // The Add screen runs a photo ahead, so several are in flight at once and
+    // a single death used to reject every one of them.
+    const { prepPhotoAsync } = await import('./pipelineClient');
+    await prepPhotoAsync(new Blob()); // build the worker
+
+    deathsToStage = 1;
+    const batch = [
+      prepPhotoAsync(new Blob()),
+      prepPhotoAsync(new Blob()),
+      prepPhotoAsync(new Blob()),
+      prepPhotoAsync(new Blob()),
+    ];
+    await expect(Promise.all(batch)).resolves.toEqual([
+      'did prep',
+      'did prep',
+      'did prep',
+      'did prep',
+    ]);
+  });
+
+  it('gives up on a request that dies on a fresh worker too', async () => {
+    // Re-posting forever would crash a worker in a loop and never succeed.
+    const { prepPhotoAsync } = await import('./pipelineClient');
+    deathsToStage = 5;
+    await expect(prepPhotoAsync(new Blob())).rejects.toThrow(/stopped unexpectedly/);
+  });
+
   it('keeps the fast worker alive when the model worker dies', async () => {
     // A phone reclaiming memory kills the model worker, which holds tens of
     // megabytes. Importing must carry on regardless — without cutouts.

@@ -167,7 +167,11 @@ export default function Add() {
         continue;
       }
 
-      const { base, source } = prepared;
+      // The full-resolution original the saved photo is cropped from. For an
+      // ordinary photo that is the picked file, already in memory — only a
+      // HEIC produces a separate decoded blob worth carrying.
+      const { base } = prepared;
+      const source = prepared.converted ?? list[index];
       // The model reads the 1200px copy; it downsamples to its own resolution
       // anyway, so handing it the original would cost memory for nothing.
       // Started here and deliberately not awaited: the crop step goes up now.
