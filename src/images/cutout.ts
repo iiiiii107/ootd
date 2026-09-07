@@ -105,8 +105,6 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
  * pixels showing through at partial alpha.
  */
 const ALPHA_FLOOR = 128;
-/** Alpha at or above this is solidly garment — forced fully opaque. */
-const ALPHA_CEIL = 176;
 
 /**
  * Hardens a segmentation mask's alpha, and it earns its keep twice over.
@@ -134,7 +132,6 @@ export async function cleanMask(cutout: Blob): Promise<Blob> {
     const height = bitmap.height;
     const image = ctx.getImageData(0, 0, width, height);
     const data = image.data;
-    const range = ALPHA_CEIL - ALPHA_FLOOR;
 
     const keep = solidRegions(data, width, height);
     const scanWidth = keep.width;
@@ -145,7 +142,7 @@ export async function cleanMask(cutout: Blob): Promise<Blob> {
         const i = (y * width + x) * 4 + 3;
         const scanX = Math.min(scanWidth - 1, Math.floor((x * scanWidth) / width));
         const cell = scanY * scanWidth + scanX;
-        if (!keep.data[cell]) {
+        if (keep.dropped[cell]) {
           data[i] = 0; // an island out in the background, not the garment
           continue;
         }
@@ -162,10 +159,18 @@ export async function cleanMask(cutout: Blob): Promise<Blob> {
           data[i] = 255;
           continue;
         }
+        // At the edge, keep the model's own gradient. It used to be stretched
+        // — a 48-wide band of alpha pushed across the whole 0–255 range, a 5×
+        // contrast boost — and that is what produced the stair-stepping. The
+        // model's mask is low-resolution and arrives smoothly upscaled;
+        // amplifying that gradient hard enough turns a soft edge into a binary
+        // one, and a binary edge snaps to the low-resolution pixel grid
+        // underneath it. Rectangles, in other words.
+        //
+        // Stretching was only ever there to stop mid-alpha making a garment
+        // translucent, and the interior rule above does that properly now.
         const alpha = data[i];
-        if (alpha <= ALPHA_FLOOR) data[i] = 0;
-        else if (alpha >= ALPHA_CEIL) data[i] = 255;
-        else data[i] = Math.round(((alpha - ALPHA_FLOOR) / range) * 255);
+        data[i] = alpha <= ALPHA_FLOOR ? 0 : alpha;
       }
     }
     ctx.putImageData(image, 0, 0);
@@ -239,12 +244,20 @@ export function interiorCells(keep: Uint8Array, w: number, h: number): Uint8Arra
  *
  * Labelled on a coarse grid with an explicit stack rather than recursion; a
  * flood fill over a megapixel image recurses deep enough to blow the stack.
+ *
+ * What comes back is deliberately *not* a garment outline. This grid is ~5px
+ * per cell at import size, and a crop magnifies that further, so anything it
+ * decides shows up as axis-aligned steps. It used to decide which pixels were
+ * garment at all, which cut visible rectangular bites out of every sleeve and
+ * hem. It now answers only the question it is coarse enough to answer — which
+ * blobs are litter — and the outline comes from the mask's own full-resolution
+ * alpha.
  */
 function solidRegions(
   data: Uint8ClampedArray,
   width: number,
   height: number,
-): { data: Uint8Array; interior: Uint8Array; width: number; height: number } {
+): { dropped: Uint8Array; interior: Uint8Array; width: number; height: number } {
   const scale = Math.min(1, REGION_SCAN_EDGE / Math.max(width, height));
   const w = Math.max(1, Math.round(width * scale));
   const h = Math.max(1, Math.round(height * scale));
@@ -291,12 +304,19 @@ function solidRegions(
 
   const largest = sizes.length > 0 ? Math.max(...sizes) : 0;
   const threshold = largest * REGION_MIN_SHARE;
+
   const keep = new Uint8Array(w * h);
+  // Cells belonging to a region too small to be clothing — litter to erase.
+  // Deliberately *only* these: this grid is coarse, and letting it decide the
+  // garment's own outline is what cut stair-steps into it.
+  const dropped = new Uint8Array(w * h);
   for (let i = 0; i < keep.length; i++) {
-    keep[i] = label[i] >= 0 && sizes[label[i]] >= threshold ? 1 : 0;
+    const big = label[i] >= 0 && sizes[label[i]] >= threshold;
+    keep[i] = big ? 1 : 0;
+    dropped[i] = label[i] >= 0 && !big ? 1 : 0;
   }
 
-  return { data: keep, interior: interiorCells(keep, w, h), width: w, height: h };
+  return { dropped, interior: interiorCells(keep, w, h), width: w, height: h };
 }
 
 /**

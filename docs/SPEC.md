@@ -256,6 +256,12 @@ Two tools, because leftover background comes in two shapes:
 
 Editing touches **the alpha channel only**, never colour. That makes an undo step one byte per pixel instead of four — the difference between an affordable history on a phone and none — and makes every erase exactly reversible.
 
+**The mask's own gradient is kept, never stretched.** The hardening pass used to map a 48-wide band of alpha across the full 0–255 range — a fivefold contrast boost on exactly the pixels that form the outline. The model's mask is low-resolution and arrives smoothly upscaled, so amplifying it that hard turned a soft edge into a binary one, and a binary edge snaps to the low-resolution pixel grid beneath it: visible rectangular steps along every sleeve and hem. Measured on a realistic upscaled mask, the stretch narrowed the transition from 8px to 5px and coarsened each step from ~9 levels of alpha to ~50.
+
+Stretching only ever existed to stop mid-alpha making a garment translucent, and the interior rule does that properly, so the edge can simply be left alone.
+
+The coarse region grid is likewise no longer allowed to decide what counts as garment — it answers only "which blobs are litter", the one question it is coarse enough to answer. Letting a ~5px grid define an outline was the other half of the stepping.
+
 **Softening belongs at an edge, not inside a garment.** The alpha ramp that hardens the model's mask was being applied to every pixel, so wherever the model was less than fully confident *within* a garment, the garment itself turned translucent and the page showed through it — measured at alpha 156, 61% opaque, in the middle of a solid black tee. Composited on the beige ground that is enough to bring a black garment to roughly rgb(105,105,105) and meet a white one in the middle, which is exactly the "everything looks grey" this produced. The ramp now runs only on cells at the mask's boundary; anything enclosed by kept cells is opaque by construction.
 
 With the inside protected, the floor could finally be raised (96 → 128), which trims the pale halo of background pixels showing through at partial alpha. It could not be raised before: over every pixel, a higher floor would have punched holes in garments the model was unsure about.
