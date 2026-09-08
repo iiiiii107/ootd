@@ -6,6 +6,7 @@ import { ScreenTitle } from '../components/ScreenTitle';
 import { TagChipRow } from '../components/TagChipRow';
 import { useAutoDetectEnabled, useCutoutEnabled, useItem, useSegmentationModel } from '../db/hooks';
 import { createItem, getItem, suggestName, updateItem } from '../db/items';
+import { PALETTE_VERSION } from '../db/paletteVersion';
 import type { Category } from '../db/types';
 import { FULL_FRAME, type CropRect } from '../images/crop';
 import type { PhotoSegmentation, PreparedPhoto } from '../images/pipeline';
@@ -475,6 +476,10 @@ async function applyCutoutWhenReady(
       image: photo.image,
       thumb: photo.thumb,
       hasCutout: true,
+      // Now a meaningful write rather than a rewrite of the same number: this
+      // is the moment the garment's colour stops being partly the wall's.
+      palette: photo.palette,
+      paletteVersion: PALETTE_VERSION,
       dominantColor: photo.dominantColor,
       originalImage: current.originalImage ?? current.image,
     });

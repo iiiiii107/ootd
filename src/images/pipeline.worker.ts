@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 
 import type { CropRect } from './crop';
+import { paletteFromThumb } from './palette';
 import { finishPhoto, prepPhoto, segmentPhoto, type AnalyzeOptions } from './pipeline';
 
 /**
@@ -24,7 +25,8 @@ import { finishPhoto, prepPhoto, segmentPhoto, type AnalyzeOptions } from './pip
 export type WorkerRequestBody =
   | { kind: 'prep'; file: Blob }
   | { kind: 'segment'; base: Blob; options: AnalyzeOptions }
-  | { kind: 'finish'; source: Blob; crop: CropRect; cutout: Blob | null };
+  | { kind: 'finish'; source: Blob; crop: CropRect; cutout: Blob | null }
+  | { kind: 'palette'; thumb: Blob; hasCutout: boolean };
 
 export type WorkerRequest = WorkerRequestBody & { id: number };
 
@@ -42,7 +44,9 @@ scope.onmessage = async (event: MessageEvent<WorkerRequest>) => {
         ? await prepPhoto(message.file)
         : message.kind === 'segment'
           ? await segmentPhoto(message.base, message.options)
-          : await finishPhoto(message.source, message.crop, message.cutout);
+          : message.kind === 'palette'
+            ? await paletteFromThumb(message.thumb, message.hasCutout)
+            : await finishPhoto(message.source, message.crop, message.cutout);
     scope.postMessage({ id: message.id, ok: true, result } satisfies WorkerResponse);
   } catch (error) {
     scope.postMessage({

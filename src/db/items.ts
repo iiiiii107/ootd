@@ -1,4 +1,6 @@
 import { cropToThumb } from '../images/cutout';
+import { mergeSwatches, type Swatch } from '../logic/colour';
+import { PALETTE_VERSION } from './paletteVersion';
 import { db } from './schema';
 import type { Category, Item } from './types';
 
@@ -10,6 +12,7 @@ export interface NewItemInput {
   image: Blob;
   thumb: Blob;
   dominantColor: string;
+  palette?: Swatch[];
   hasCutout?: boolean;
   name?: string;
 }
@@ -35,6 +38,8 @@ export async function createItem(input: NewItemInput): Promise<Item> {
     hasCutout: input.hasCutout ?? false,
     // Nothing has been removed yet, so there is nothing to go back to.
     originalImage: null,
+    palette: input.palette ?? [],
+    paletteVersion: PALETTE_VERSION,
     seasons: [],
     formality: null,
     location: null,
@@ -196,6 +201,12 @@ export async function createOutfitFromMembers(members: Item[], name?: string): P
     thumb: null,
     hasCutout: members.some((m) => m.hasCutout),
     originalImage: null,
+    // The outfit's colours are its members' colours pooled, not — as this once
+    // was — whichever member happened to be listed first.
+    palette: mergeSwatches(
+      members.flatMap((m) => m.palette.map((s) => ({ ...s, share: s.share / members.length }))),
+    ).slice(0, 3),
+    paletteVersion: PALETTE_VERSION,
     seasons: [...new Set(members.flatMap((m) => m.seasons))],
     formality: firstNonNull(members.map((m) => m.formality)),
     location: firstNonNull(members.map((m) => m.location)),
@@ -204,7 +215,7 @@ export async function createOutfitFromMembers(members: Item[], name?: string): P
     favorite: false,
     inWash: false,
     customTags: [],
-    dominantColor: members[0]?.dominantColor ?? '#000000',
+    dominantColor: '#000000', // set from the merged palette just below
     memberIds: members.map((m) => m.id),
     notes: '',
     lastWornAt: null,
@@ -214,6 +225,7 @@ export async function createOutfitFromMembers(members: Item[], name?: string): P
     createdAt: now,
     updatedAt: now,
   };
+  item.dominantColor = item.palette[0]?.hex ?? '#000000';
   await db.items.add(item);
   return item;
 }

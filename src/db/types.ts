@@ -1,3 +1,5 @@
+import type { Swatch } from '../logic/colour';
+
 /**
  * Data model (spec §4). Every field beyond `category` is optional at save
  * time — tagging is never mandatory beyond category (spec §7.4) — so most
@@ -71,8 +73,29 @@ export interface Item {
   inWash: boolean;
   /** IDs into the `tags` store. */
   customTags: string[];
-  /** Auto-extracted at import. Unused for matching in v1. */
+  /**
+   * Legacy single colour, now just `palette[0]`.
+   *
+   * Kept because it is in every backup archive ever written and in
+   * `NewItemInput`. Do not use it for matching: for its whole life it was the
+   * average of the *entire* crop including the wall behind the garment, which
+   * stored a black top on a white wall as mid grey.
+   */
   dominantColor: string;
+  /**
+   * The colours the garment is actually made of, largest share first.
+   *
+   * Read from the *cutout* where there is one, skipping transparent pixels, so
+   * the background contributes nothing. One to three swatches rather than a
+   * single average, because averaging a striped shirt gives you the mush
+   * between its stripes — red and white becomes pink.
+   *
+   * Empty means "not read yet" — backfill pending, or an item from an older
+   * archive. It never means black, and matching must treat it as no opinion.
+   */
+  palette: Swatch[];
+  /** Which extraction produced `palette`, so a future change re-reads only stale items. */
+  paletteVersion: number;
   /** Only populated for `category: 'outfit'` items created from the randomizer. */
   memberIds: string[];
   notes: string;

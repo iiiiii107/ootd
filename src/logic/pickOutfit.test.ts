@@ -23,6 +23,8 @@ function makeItem(overrides: Partial<Item> = {}): Item {
     thumb: new Blob(),
     hasCutout: false,
     originalImage: null,
+    palette: [],
+    paletteVersion: 1,
     seasons: [],
     formality: null,
     location: null,

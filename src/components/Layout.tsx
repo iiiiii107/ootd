@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Outlet } from 'react-router';
 
 import { migrateDensityDefault } from '../db/appearance';
+import { backfillPalettes } from '../db/backfillPalettes';
 import { purgeExpiredTrash } from '../db/items';
 import { Notices } from './Notices';
 import { TabBar } from './TabBar';
@@ -26,6 +27,9 @@ export function Layout() {
     // Trash purges automatically after 30 days (spec §4.4) — check once per launch.
     void purgeExpiredTrash();
     void migrateDensityDefault();
+    // Cheap and safe: it re-reads thumbnails already on disk, with no model and
+    // no network, so unlike importing it cannot fail in a way that matters.
+    void backfillPalettes();
   }, []);
 
   return (

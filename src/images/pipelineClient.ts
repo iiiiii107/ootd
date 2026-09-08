@@ -1,3 +1,4 @@
+import type { Swatch } from '../logic/colour';
 import type { CropRect } from './crop';
 import type {
   AnalyzeOptions,
@@ -193,6 +194,16 @@ export function prepPhotoAsync(file: Blob): Promise<PreparedPhoto> {
 /** The ~9.5s model pass. Start it, don't await it on any path a person is watching. */
 export function segmentPhotoAsync(base: Blob, options: AnalyzeOptions): Promise<PhotoSegmentation> {
   return send<PhotoSegmentation>({ kind: 'segment', base, options });
+}
+
+/**
+ * Read a stored thumbnail's colours. A few milliseconds of canvas work, so it
+ * goes to the light worker like everything but the model — `roleFor` already
+ * routes it there, which is what keeps the backfill from queueing behind a
+ * 9.5s inference.
+ */
+export function paletteFromThumbAsync(thumb: Blob, hasCutout: boolean): Promise<Swatch[]> {
+  return send<Swatch[]>({ kind: 'palette', thumb, hasCutout });
 }
 
 /** `source` is the full-resolution photo, not the working copy — see `finishPhoto`. */

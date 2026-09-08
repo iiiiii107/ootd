@@ -1,4 +1,3 @@
-import { extractDominantColor } from './color';
 
 /** Matches src/images/process.ts — the ceiling on a stored photo's longest edge. */
 const MAX_EDGE = 1200;
@@ -11,12 +10,16 @@ import {
   detectSubjectBounds,
   type CropRect,
 } from './crop';
+import type { Swatch } from '../logic/colour';
 import { cleanMask, cropToThumb, segment, type ModelChoice } from './cutout';
 import { encodeWithAlpha } from './encode';
+import { paletteFromThumb } from './palette';
 import { ensureJpeg } from './decode';
 import { makeWorkingCopy } from './process';
 
 export interface ImportedPhoto {
+  /** The garment's own colours — from the cutout where there is one. */
+  palette: Swatch[];
   image: Blob;
   thumb: Blob;
   dominantColor: string;
@@ -119,9 +122,16 @@ export async function segmentPhoto(base: Blob, options: AnalyzeOptions): Promise
  * The same normalised rect addresses the photo and the mask, which are
  * pixel-aligned as fractions, so the two stay in register at either scale.
  *
- * Dominant colour is always sampled from the plain crop, never the cutout —
- * post-cutout, much of the frame is flat white background, which would skew
- * the average away from the garment itself.
+ * Colour is read from the **cutout** where there is one, and that is the
+ * opposite of what this used to do. The old note here said the plain crop was
+ * always used because a cutout's frame was "flat white background" — but a
+ * cutout's frame is *transparent*, and skipping transparent pixels is exactly
+ * what makes the garment the only thing sampled. Reading the plain crop meant
+ * every colour was part garment and part wall, which stored a black top shot
+ * against white as mid grey and made colour matching impossible.
+ *
+ * Without a cutout there is no way to know where the garment ends, so the
+ * centre of the frame is the honest fallback (src/images/palette.ts).
  */
 export async function finishPhoto(
   source: Blob,
@@ -130,10 +140,16 @@ export async function finishPhoto(
 ): Promise<ImportedPhoto> {
   const plain = await cropAndResize(source, crop, MAX_EDGE, JPEG_QUALITY);
   const plainThumb = await cropToThumb(plain);
-  const dominantColor = await extractDominantColor(plainThumb);
 
   if (!cutout) {
-    return { image: plain, thumb: plainThumb, dominantColor, hasCutout: false };
+    const palette = await paletteFromThumb(plainThumb, false);
+    return {
+      image: plain,
+      thumb: plainThumb,
+      palette,
+      dominantColor: palette[0]?.hex ?? '#000000',
+      hasCutout: false,
+    };
   }
 
   try {
@@ -146,10 +162,19 @@ export async function finishPhoto(
     const canvas = await cropWithMask(source, cutout, crop);
     const image = await encodeWithAlpha(canvas);
     const thumb = await cropToThumb(image, true);
-    return { image, thumb, dominantColor, hasCutout: true };
+    // Read *after* the alpha-carrying thumb exists — that is the whole point.
+    const palette = await paletteFromThumb(thumb, true);
+    return { image, thumb, palette, dominantColor: palette[0]?.hex ?? '#000000', hasCutout: true };
   } catch {
     // Same rule as everywhere else in this pipeline (spec R3): a cutout that
     // can't be produced falls back to the plain photo, never a failed import.
-    return { image: plain, thumb: plainThumb, dominantColor, hasCutout: false };
+    const palette = await paletteFromThumb(plainThumb, false);
+    return {
+      image: plain,
+      thumb: plainThumb,
+      palette,
+      dominantColor: palette[0]?.hex ?? '#000000',
+      hasCutout: false,
+    };
   }
 }

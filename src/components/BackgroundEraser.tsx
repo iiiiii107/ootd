@@ -4,6 +4,8 @@ import { updateItem } from '../db/items';
 import type { Item } from '../db/types';
 import { cropToThumb } from '../images/cutout';
 import { encodeWithAlpha } from '../images/encode';
+import { paletteFromThumb } from '../images/palette';
+import { PALETTE_VERSION } from '../db/paletteVersion';
 import { alphaOf, applyAlpha, brushErase, wandErase } from '../images/erase';
 
 /**
@@ -186,10 +188,17 @@ export function BackgroundEraser({ item, onClose }: { item: Item; onClose: () =>
       // same copy of what it replaced — but only the first time, or a second
       // round of tidying would overwrite the true original with an
       // already-cut version and quietly make the background unrecoverable.
+      // Erasing changes what the garment *is*, so its colours are re-read from
+      // the result. Without this a hand-tidied garment would keep the palette
+      // of the version that still had background in it.
+      const palette = await paletteFromThumb(thumb, true);
       await updateItem(item.id, {
         image,
         thumb,
         hasCutout: true,
+        palette,
+        paletteVersion: PALETTE_VERSION,
+        dominantColor: palette[0]?.hex ?? item.dominantColor,
         originalImage: item.originalImage ?? item.image,
       });
       onClose();
