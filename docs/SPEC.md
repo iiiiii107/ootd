@@ -330,6 +330,13 @@ Not everyone thinks about clothes in five dimensions, and meeting all of them on
 
 **A hidden group is not consulted, either.** It disappears from the filter bar, the item editor, the randomizer's filter rows and the analytics breakdowns — and it stops constraining which garments the randomizer considers compatible. A rule shaping your outfits that you cannot see is what makes an app feel arbitrary. It is also ignored for filtering even when a stale saved filter still holds values for it, or hiding a group would leave an invisible filter quietly excluding half the wardrobe.
 
+**Pattern and fit** join vibe as optional groups, both off by default. They earn their place as built-ins rather than custom groups because they take part in pairing, which a custom group cannot:
+
+- **Pattern** — `plain` behaves exactly as a neutral colour does: it goes with anything, and most wardrobes are mostly plain, so without that rule almost nothing would pair. Two busy garments are discouraged.
+- **Fit** — one relaxed piece with one closer-cut, the most repeated styling advice there is. Loose with loose reads shapeless; `regular` quarrels with nothing.
+
+Both are **leans, not hard rules**, and that is the difference between them and season or formality. A winter coat in July is simply wrong; two patterns together is a *risk* that sometimes comes off, and a hard rule on a matter of taste produces empty shuffles for no good reason. Untagged is always neutral. Measured on a wardrobe built to clash: the doubly-clashing bottom fell from 49% to 20% of shuffles, and never to zero.
+
 **A one-time migration keeps what is already in use.** On first run, any group with garments already tagged stays on — so an existing wardrobe loses nothing and a new one starts simpler.
 
 This is the user's own idea ("if a tag is used, it should be there") put where it works. As a *live* rule it is circular: a hidden group cannot be used, so an unused one could never return on its own, and a group would vanish mid-use the moment its last tagged garment was deleted. As a migration it does exactly the right thing once.

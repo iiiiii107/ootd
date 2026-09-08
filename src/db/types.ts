@@ -31,6 +31,16 @@ export type Location = 'university' | 'linh' | 'home' | 'elsewhere';
 
 export type Vibe = 'masculine' | 'androgynous' | 'feminine';
 
+/**
+ * How busy a garment is. `plain` is the one that matters: it goes with
+ * anything, exactly as a neutral colour does, and most wardrobes are mostly
+ * plain — so without it almost nothing would pair.
+ */
+export type Pattern = 'plain' | 'striped' | 'checked' | 'floral' | 'printed';
+
+/** How close-cut. The styling rule is balance: loose with loose reads shapeless. */
+export type Fit = 'fitted' | 'regular' | 'loose';
+
 export interface Item {
   /** Primary key, UUID. */
   id: string;
@@ -74,6 +84,9 @@ export interface Item {
   /** Free text, only meaningful when `location === 'elsewhere'`. */
   elsewhereNote: string;
   vibe: Vibe | null;
+  /** Optional dimensions, off by default (spec §7.11). Null means untagged, never "plain". */
+  pattern: Pattern | null;
+  fit: Fit | null;
   /** Standalone toggle, independent of every other tag. */
   favorite: boolean;
   /** Availability toggle (spec §6) — excluded from the randomizer by default. */

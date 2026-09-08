@@ -15,7 +15,9 @@ import { db } from './schema';
 export const ENABLED_GROUPS_KEY = 'enabledGroups';
 
 /**
- * Vibe is off to begin with; the rest are on.
+ * Vibe, pattern and fit are off to begin with; the rest are on. All three are
+ * ways of sorting a wardrobe that some people find essential and others never
+ * think about, and a new user should not meet seven dimensions on day one.
  *
  * Category is absent deliberately — it is the one tag required at save time
  * (spec §4.1), so it is not a preference and must never be switchable.
@@ -25,6 +27,8 @@ const DEFAULTS: Record<string, boolean> = {
   formality: true,
   location: true,
   vibe: false,
+  pattern: false,
+  fit: false,
 };
 
 export function isAlwaysOn(groupId: string): boolean {

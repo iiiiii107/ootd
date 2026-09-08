@@ -32,6 +32,8 @@ function makeItem(overrides: Partial<Item> = {}): Item {
     location: null,
     elsewhereNote: '',
     vibe: null,
+    pattern: null,
+    fit: null,
     favorite: false,
     inWash: false,
     customTags: [],

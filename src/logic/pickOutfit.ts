@@ -96,9 +96,17 @@ export interface ActiveDimensions {
   season: boolean;
   formality: boolean;
   vibe: boolean;
+  pattern: boolean;
+  fit: boolean;
 }
 
-const ALL_DIMENSIONS: ActiveDimensions = { season: true, formality: true, vibe: true };
+const ALL_DIMENSIONS: ActiveDimensions = {
+  season: true,
+  formality: true,
+  vibe: true,
+  pattern: true,
+  fit: true,
+};
 
 export interface PickOptions {
   /** Defaults to all on, so existing callers and tests are unaffected. */
@@ -222,6 +230,43 @@ export function weight(
 }
 
 /**
+ * Pattern and fit, as leans on how well two garments sit together.
+ *
+ * Leans rather than hard rules, deliberately, and this is the difference
+ * between them and season or formality. A winter coat in July is simply wrong;
+ * two patterns together is a *risk*, and one that sometimes comes off. A hard
+ * rule on a matter of taste produces empty shuffles for no good reason.
+ *
+ * **Pattern**: `plain` behaves exactly as a neutral colour does — it goes with
+ * anything, and most wardrobes are mostly plain, so without that rule almost
+ * nothing would pair. Two busy garments are discouraged, not forbidden.
+ *
+ * **Fit**: the single most repeated piece of styling advice there is — pair
+ * one relaxed piece with one closer-cut. Loose with loose reads shapeless;
+ * `regular` is the middle and quarrels with nothing.
+ *
+ * Untagged is always neutral. Tagging is never mandatory beyond category, and
+ * a garment nobody has got round to describing must not be quietly penalised.
+ */
+export function styleMultiplier(a: Item, b: Item, dimensions: ActiveDimensions): number {
+  let w = 1;
+
+  if (dimensions.pattern && a.pattern && b.pattern) {
+    const busy = (p: string) => p !== 'plain';
+    if (busy(a.pattern) && busy(b.pattern)) w *= 0.55;
+  }
+
+  if (dimensions.fit && a.fit && b.fit) {
+    const loose = (f: string) => f === 'loose';
+    const fitted = (f: string) => f === 'fitted';
+    if (loose(a.fit) && loose(b.fit)) w *= 0.6;
+    else if ((loose(a.fit) && fitted(b.fit)) || (fitted(a.fit) && loose(b.fit))) w *= 1.3;
+  }
+
+  return w;
+}
+
+/**
  * How much a candidate is preferred for going with an already-chosen garment.
  *
  * **Never zero, and never a filter.** Colour is a lean, so the range is
@@ -323,7 +368,8 @@ function pickPair(
     return {
       top: options.lockedTop,
       bottom: weightedPick(compatibleBottoms, history, now, rng, liked, (b) =>
-        harmonyMultiplier(options.lockedTop!, b, colour),
+        harmonyMultiplier(options.lockedTop!, b, colour) *
+        styleMultiplier(options.lockedTop!, b, dimensions),
       ),
     };
   }
@@ -332,7 +378,8 @@ function pickPair(
     if (compatibleTops.length === 0) return null;
     return {
       top: weightedPick(compatibleTops, history, now, rng, liked, (t) =>
-        harmonyMultiplier(t, options.lockedBottom!, colour),
+        harmonyMultiplier(t, options.lockedBottom!, colour) *
+        styleMultiplier(t, options.lockedBottom!, dimensions),
       ),
       bottom: options.lockedBottom,
     };
@@ -353,7 +400,7 @@ function pickPair(
       return {
         top,
         bottom: weightedPick(compatibleBottoms, history, now, rng, liked, (b) =>
-          harmonyMultiplier(top, b, colour),
+          harmonyMultiplier(top, b, colour) * styleMultiplier(top, b, dimensions),
         ),
       };
     }
@@ -411,7 +458,10 @@ function pickForSlot(
   // Judged against both halves of the outfit rather than one, so a piece is
   // chosen for the look and not for the garment it happens to sit nearest.
   return weightedPick(pool, history, now, rng, colour?.liked ?? [], (o) =>
-    Math.min(harmonyMultiplier(pair.top, o, colour), harmonyMultiplier(pair.bottom, o, colour)),
+    Math.min(
+      harmonyMultiplier(pair.top, o, colour) * styleMultiplier(pair.top, o, dimensions),
+      harmonyMultiplier(pair.bottom, o, colour) * styleMultiplier(pair.bottom, o, dimensions),
+    ),
   );
 }
 

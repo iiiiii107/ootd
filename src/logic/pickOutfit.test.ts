@@ -8,6 +8,7 @@ import {
   currentSeason,
   harmonyMultiplier,
   pickOutfit,
+  styleMultiplier,
   weight,
   type RandomizerFilters,
   type ShuffleHistory,
@@ -32,6 +33,8 @@ function makeItem(overrides: Partial<Item> = {}): Item {
     location: null,
     elsewhereNote: '',
     vibe: null,
+    pattern: null,
+    fit: null,
     favorite: false,
     inWash: false,
     customTags: [],
@@ -668,8 +671,9 @@ describe('the optional slots', () => {
 // --- switched-off dimensions ----------------------------------------------
 
 describe('a tag group the user has hidden', () => {
-  const OFF_VIBE = { season: true, formality: true, vibe: false };
-  const OFF_SEASON = { season: false, formality: true, vibe: true };
+  const ALL = { season: true, formality: true, vibe: true, pattern: true, fit: true };
+  const OFF_VIBE = { ...ALL, vibe: false };
+  const OFF_SEASON = { ...ALL, season: false };
 
   it('stops constraining which garments go together', () => {
     // Masculine with feminine is normally refused. Hidden, vibe imposes no
@@ -721,5 +725,59 @@ describe('a tag group the user has hidden', () => {
     const top = makeItem({ category: 'top', vibe: 'masculine', seasons: ['summer'], formality: 'casual' });
     const bottom = makeItem({ category: 'bottom', vibe: 'feminine', seasons: ['summer'], formality: 'casual' });
     expect(pickOutfit([top, bottom], filters(), [], { rng: fixedRng(0) }).status).toBe('empty');
+  });
+});
+
+describe('styleMultiplier', () => {
+  const ALL = { season: true, formality: true, vibe: true, pattern: true, fit: true };
+
+  it('is neutral when either garment is untagged', () => {
+    // Tagging is never mandatory beyond category. A garment nobody has got
+    // round to describing must not be quietly penalised for it.
+    const tagged = makeItem({ pattern: 'floral', fit: 'loose' });
+    const bare = makeItem();
+    expect(styleMultiplier(tagged, bare, ALL)).toBe(1);
+    expect(styleMultiplier(bare, tagged, ALL)).toBe(1);
+  });
+
+  it('lets plain go with anything, the way a neutral colour does', () => {
+    const plain = makeItem({ pattern: 'plain' });
+    const busy = makeItem({ pattern: 'floral' });
+    expect(styleMultiplier(plain, busy, ALL)).toBe(1);
+  });
+
+  it('discourages two busy patterns without forbidding them', () => {
+    const floral = makeItem({ pattern: 'floral' });
+    const striped = makeItem({ pattern: 'striped' });
+    const score = styleMultiplier(floral, striped, ALL);
+    expect(score).toBeLessThan(1);
+    expect(score).toBeGreaterThan(0); // a lean, never a veto
+  });
+
+  it('prefers one relaxed piece with one closer-cut', () => {
+    const loose = makeItem({ fit: 'loose' });
+    const fitted = makeItem({ fit: 'fitted' });
+    const alsoLoose = makeItem({ fit: 'loose' });
+    expect(styleMultiplier(loose, fitted, ALL)).toBeGreaterThan(1);
+    expect(styleMultiplier(loose, alsoLoose, ALL)).toBeLessThan(1);
+  });
+
+  it('leaves regular quarrelling with nothing', () => {
+    const regular = makeItem({ fit: 'regular' });
+    expect(styleMultiplier(regular, makeItem({ fit: 'loose' }), ALL)).toBe(1);
+    expect(styleMultiplier(regular, makeItem({ fit: 'fitted' }), ALL)).toBe(1);
+  });
+
+  it('ignores a dimension the user has switched off', () => {
+    const floral = makeItem({ pattern: 'floral', fit: 'loose' });
+    const striped = makeItem({ pattern: 'striped', fit: 'loose' });
+    expect(styleMultiplier(floral, striped, { ...ALL, pattern: false, fit: false })).toBe(1);
+  });
+
+  it('never produces an empty shuffle, however badly two garments clash', () => {
+    // Leans, not rules: a wardrobe of clashing patterns still gets dressed.
+    const top = makeItem({ category: 'top', pattern: 'floral', fit: 'loose', seasons: ['summer'], formality: 'casual' });
+    const bottom = makeItem({ category: 'bottom', pattern: 'striped', fit: 'loose', seasons: ['summer'], formality: 'casual' });
+    expect(pickOutfit([top, bottom], filters(), [], { rng: fixedRng(0) }).status).toBe('ok');
   });
 });

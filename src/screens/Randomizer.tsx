@@ -59,6 +59,8 @@ export default function Randomizer() {
     season: enabledGroups.season !== false,
     formality: enabledGroups.formality !== false,
     vibe: enabledGroups.vibe !== false,
+    pattern: enabledGroups.pattern !== false,
+    fit: enabledGroups.fit !== false,
   };
 
   const [filters, setFilters] = useState<RandomizerFilters>(() => ({

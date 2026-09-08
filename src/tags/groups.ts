@@ -60,7 +60,7 @@ export const TAG_HUES = [
 function singleSelectGroup(
   id: string,
   label: string,
-  field: 'formality' | 'location' | 'vibe',
+  field: 'formality' | 'location' | 'vibe' | 'pattern' | 'fit',
   hue: string,
   options: TagOption[],
 ): TagGroup {
@@ -154,10 +154,31 @@ export const VIBE_GROUP = singleSelectGroup('vibe', 'Vibe', 'vibe', TAG_HUES[4],
  * pairing behaviour in `pickOutfit` (Phase 3) and can't be deleted. Custom
  * groups from the `tags` store are appended after these by `useGroups`.
  */
+/**
+ * Busy-ness. Ordered with `plain` first because it is both the commonest and
+ * the one that does the work in pairing — the equivalent of a neutral colour.
+ */
+export const PATTERN_GROUP = singleSelectGroup('pattern', 'Pattern', 'pattern', TAG_HUES[5], [
+  { value: 'plain', label: 'plain' },
+  { value: 'striped', label: 'striped' },
+  { value: 'checked', label: 'checked' },
+  { value: 'floral', label: 'floral' },
+  { value: 'printed', label: 'printed' },
+]);
+
+/** Ordered close-cut to relaxed, so the row reads as a scale. */
+export const FIT_GROUP = singleSelectGroup('fit', 'Fit', 'fit', TAG_HUES[0], [
+  { value: 'fitted', label: 'fitted' },
+  { value: 'regular', label: 'regular' },
+  { value: 'loose', label: 'loose' },
+]);
+
 export const BUILTIN_GROUPS: TagGroup[] = [
   CATEGORY_GROUP,
   SEASON_GROUP,
   FORMALITY_GROUP,
   LOCATION_GROUP,
   VIBE_GROUP,
+  PATTERN_GROUP,
+  FIT_GROUP,
 ];
