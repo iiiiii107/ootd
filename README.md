@@ -45,6 +45,10 @@ The randomizer's "wearing this today" now says so. It always did write correctly
 
 **Thumbnails that heal themselves.** Object URLs are cached and long-lived so editing doesn't re-decode the grid, but on a real phone a cached URL can stop resolving while the photo behind it is perfectly fine — the tile shows a broken-image mark for something that was never lost. Every garment picture now renders through one component that notices, throws the dead URL away and asks for a new one.
 
+**Habits.** A chart control on the wardrobe and outfits opens one screen of statistics: how much of the wardrobe is actually in rotation, what you wear most and least, what you have never worn at all, days logged per month, what you own against what you actually wear for every tag group, and which colours you put together.
+
+Every number is computed from the wear log rather than from the cached counts on each garment — a screen whose job is to tell you the truth about your wardrobe should read the thing that is true, and a cache that has drifted then shows up rather than hiding.
+
 **A calendar of what you wore.** The ootds tab opens on a month grid rather than a list, and any past day can be filled in — the wardrobe you already own is the picker. Days you have logged show the garment rather than a dot.
 
 Days ahead work the same way, which is what makes it useful for a trip — lay out a week in advance and the calendar shows those days faded until they arrive. There is no separate kind of entry for a plan: a day has an outfit, and whether it has been worn is decided by the date. Change your mind and you just pick a different outfit for the day.

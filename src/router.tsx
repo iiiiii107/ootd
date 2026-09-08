@@ -2,6 +2,7 @@ import { createHashRouter } from 'react-router';
 
 import { Layout } from './components/Layout';
 import Add from './screens/Add';
+import Analytics from './screens/Analytics';
 import Outfits from './screens/Outfits';
 import Randomizer from './screens/Randomizer';
 import Settings from './screens/Settings';
@@ -20,6 +21,7 @@ export const router = createHashRouter([
       { path: 'wardrobe', element: <Wardrobe /> },
       { path: 'outfits', element: <Outfits /> },
       { path: 'add', element: <Add /> },
+      { path: 'analytics', element: <Analytics /> },
       { path: 'settings', element: <Settings /> },
     ],
   },

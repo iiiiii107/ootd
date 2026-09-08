@@ -302,6 +302,26 @@ Each is judged against *both* halves of the outfit: a jacket that suits the top 
 
 **Wardrobe quick filter.** Four category icons opposite the item count, driving `filters.groups.category` — the same state the search panel's chips edit, so the two can never disagree. One at a time; tapping the active one clears it. `other` gets no shortcut: it is the catch-all, so a button for it would mean "everything that is not one of these", which nobody goes looking for.
 
+### 7.10 Habits — the analytics screen
+
+One screen, reached from a chart control on both Wardrobe and Outfits. Not a tab: it is opened on purpose now and then rather than daily, and the bottom bar is already tight on a phone.
+
+**Every count comes from the wear log, never from `Item.wearCount`.** Those fields are caches by the code's own description, and a screen whose whole purpose is to tell you the truth about your wardrobe should read the thing that is true. A drifted cache then shows up here rather than hiding. Days still ahead are excluded throughout — a plan is not a wear.
+
+Sections: in rotation (last month, last three) · worn most · worn least · never worn · days logged · owned vs worn, per tag group · colours you put together.
+
+Decisions worth keeping:
+
+- **Least-worn excludes never-worn.** They have their own section; without the exclusion the two lists are largely the same list, and "what do I own and rarely reach for" gets buried under the far commoner "what have I not worn at all".
+- **Never-worn is shown as thumbnails**, because it is the section people act on, and you decide what to do with a garment by looking at it.
+- **`ownedShare` counts garments, `wornShare` counts wear events.** A garment worn eight times counts eight times. That asymmetry is the point: "own mostly formal, wear mostly casual" is the gap between two bars.
+- **Untagged garments are excluded from both sides and reported separately**, or a half-tagged wardrobe reads as "0% formal" rather than "not enough of this is tagged yet".
+- **Empty months are filled with zero.** A chart that skips a fallow stretch lies about exactly what the section is for.
+- **Archived and trashed are out of the usage denominator.** Clothes you no longer own should not drag down how much of your wardrobe you use.
+- `tagBreakdown` takes a group's options and a reader rather than importing `TagGroup`, so a custom group invented in Settings gets a breakdown for free — the same generic-renderer principle the filter bar follows.
+
+No charting dependency: bars are divs, the month chart is a row of them, and colours come from the tag hues via inline custom properties.
+
 ### 7.6 ootds — the wear log
 
 Two things live on the Outfits screen, related but not the same: **recently worn** (the default) and **saved**.

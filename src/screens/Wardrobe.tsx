@@ -8,9 +8,12 @@ import { OutfitBuilder } from '../components/OutfitBuilder';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { SearchBar } from '../components/SearchBar';
 import { SortRow } from '../components/SortRow';
+import { Link } from 'react-router';
+
 import {
   BasketIcon,
   BottomIcon,
+  ChartIcon,
   HeartIcon,
   JacketIcon,
   SearchIcon,
@@ -161,6 +164,13 @@ export default function Wardrobe() {
         >
           <HeartIcon filled={filters.favoritesOnly} className="h-5 w-5" />
         </button>
+        <Link
+          to="/analytics"
+          aria-label="Your wearing habits"
+          className="flex min-h-11 min-w-11 items-center justify-center text-muted"
+        >
+          <ChartIcon className="h-5 w-5" />
+        </Link>
         <button
           type="button"
           onClick={() => setFiltersOpen(!filtersOpen)}

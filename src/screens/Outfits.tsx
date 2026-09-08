@@ -8,7 +8,9 @@ import { ScreenTitle } from '../components/ScreenTitle';
 import { SearchBar } from '../components/SearchBar';
 import { SortRow } from '../components/SortRow';
 import { WearCalendar } from '../components/WearCalendar';
-import { SearchIcon } from '../components/icons';
+import { Link } from 'react-router';
+
+import { ChartIcon, SearchIcon } from '../components/icons';
 import { useOutfitItems } from '../db/hooks';
 import { getMeta, setMeta } from '../db/meta';
 import { DEFAULT_FILTER_STATE, filterItems, sortItems, type FilterState, type SortKey } from '../db/query';
@@ -129,6 +131,13 @@ export default function Outfits() {
           >
             +
           </button>
+          <Link
+            to="/analytics"
+            aria-label="Your wearing habits"
+            className="flex min-h-11 min-w-11 items-center justify-center text-muted"
+          >
+            <ChartIcon className="h-5 w-5" />
+          </Link>
           {/* Search and sort only mean anything against the saved library;
               the worn feed is a short, strictly chronological list. */}
           {tab === 'saved' && (

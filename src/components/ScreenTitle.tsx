@@ -14,15 +14,20 @@ import { BackIcon, GearIcon } from './icons';
  * keeps the title optically centred in the screen, which a flex row with an
  * icon on one side would not.
  *
- * Settings swaps that gear for a way back out, on the left where a back
- * control belongs. Without one the only exit was the tab bar, which meant
- * leaving Settings always landed you on some *other* screen rather than the
- * one you opened it from.
+ * A screen that is not one of the four tabs swaps that gear for a way back
+ * out, on the left where a back control belongs. Without one the only exit was
+ * the tab bar, which meant leaving always landed you on some *other* screen
+ * rather than the one you opened it from.
  */
+const TAB_PATHS = new Set(['/', '/wardrobe', '/outfits', '/add']);
+
 export function ScreenTitle({ children }: { children: string }) {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const isSettings = pathname === '/settings';
+  // Anything that is not one of the four tabs gets a way back instead of the
+  // gear — Settings, analytics, and whatever comes next. A list of tabs rather
+  // than a growing list of special cases.
+  const isTab = TAB_PATHS.has(pathname);
 
   function goBack() {
     // `navigate(-1)` on its own can walk out of the app entirely — reloading
@@ -40,7 +45,7 @@ export function ScreenTitle({ children }: { children: string }) {
         {children}
       </h1>
 
-      {isSettings ? (
+      {!isTab ? (
         <button
           type="button"
           onClick={goBack}

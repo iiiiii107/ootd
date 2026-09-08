@@ -167,3 +167,16 @@ export function ShoesIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+/** The way in to analytics — bars, because that is what is behind it. */
+export function ChartIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5"
+      strokeLinecap="round" className={className} aria-hidden="true">
+      <line x1="4" y1="16" x2="16" y2="16" />
+      <line x1="6.5" y1="16" x2="6.5" y2="11" />
+      <line x1="10" y1="16" x2="10" y2="6" />
+      <line x1="13.5" y1="16" x2="13.5" y2="9" />
+    </svg>
+  );
+}
