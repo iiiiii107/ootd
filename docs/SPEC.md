@@ -310,7 +310,13 @@ Two things live on the Outfits screen, related but not the same: **recently worn
 
 **A back-dated entry is stamped at midday on its own day, never `Date.now()`.** This is the difference between a feature and a quiet corruption: `deriveWearStats` takes the largest `wornAt` as `lastWornAt`, so logging a month-old outfit with the current time would tell the wardrobe's sort and the randomizer's neglect weighting that those garments were worn *today*, silently changing what the app recommends. Midday rather than midnight so a daylight-saving shift cannot move it across a day boundary.
 
-**Future dates are refused in the database layer**, not only in the UI. The date is the primary key, so a future row would sit at the top of the log and hold `lastWornAt` ahead of every real wear indefinitely.
+**Days ahead can be filled in too** — laying out a week for a trip is the same gesture as recording one, so there is no separate kind of entry for a plan. A day has an outfit; whether it has been worn is a fact about the date, not a property stored on it. Plan something and change your mind, and you choose a different outfit for that day.
+
+**A day still ahead does not count as worn.** `deriveWearStats` ignores entries dated after today, so clothes laid out for next week do not stop the randomizer suggesting them before you have put them on. Because that transition happens through time passing rather than through anything being written, the cached `lastWornAt` and `wearCount` are settled at launch (`settleWearStats`) — yesterday's plan is today's record, and no code ran in between.
+
+Ahead of today a day is shown faded, behind it solid. Derived from the date alone, so nothing can disagree about which is which.
+
+The date being the primary key is what makes all of this safe: a day holds exactly one outfit whether it is a plan or a record, and re-planning simply replaces it.
 
 **The log.** One entry per day, most recent first. The local date is the entry's primary key, which makes "logging again replaces today" true by construction rather than by a check that could race — and it must be the *local* date, or an outfit logged in the evening files itself under tomorrow.
 

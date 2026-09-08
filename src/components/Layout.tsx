@@ -4,6 +4,7 @@ import { Outlet } from 'react-router';
 import { migrateDensityDefault } from '../db/appearance';
 import { backfillPalettes } from '../db/backfillPalettes';
 import { purgeExpiredTrash } from '../db/items';
+import { settleWearStats } from '../db/wears';
 import { Notices } from './Notices';
 import { TabBar } from './TabBar';
 
@@ -30,6 +31,9 @@ export function Layout() {
     // Cheap and safe: it re-reads thumbnails already on disk, with no model and
     // no network, so unlike importing it cannot fail in a way that matters.
     void backfillPalettes();
+    // A plan becomes a wear by the calendar moving, not by anything being
+    // written, so the cached stats need settling on the way in.
+    void settleWearStats();
   }, []);
 
   return (

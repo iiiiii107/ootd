@@ -47,6 +47,8 @@ The randomizer's "wearing this today" now says so. It always did write correctly
 
 **A calendar of what you wore.** The ootds tab opens on a month grid rather than a list, and any past day can be filled in — the wardrobe you already own is the picker. Days you have logged show the garment rather than a dot.
 
+Days ahead work the same way, which is what makes it useful for a trip — lay out a week in advance and the calendar shows those days faded until they arrive. There is no separate kind of entry for a plan: a day has an outfit, and whether it has been worn is decided by the date. Change your mind and you just pick a different outfit for the day.
+
 Back-dating had one trap worth naming: the wear log is what `last worn` and the randomizer's "haven't worn this in a while" are derived from, so an entry for three weeks ago has to be stamped three weeks ago. Stamped with the current time it would quietly tell the app that a month-old outfit was worn today.
 
 **Jackets and shoes.** Two new garment types, and three independent switches on the randomizer for a jacket, shoes and an accessory. A jacket has to agree on season and formality — a winter coat over a summer dress is wrong in a way you would notice — while shoes only have to agree on formality, since trainers are not seasonal the way a coat is. A slot nothing fits is left empty rather than failing the shuffle. The result now reads like a body: the pair down the centre, jacket to the left, shoes below, accessory at the waist.

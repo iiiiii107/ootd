@@ -41,13 +41,6 @@ export async function logWear(
 ): Promise<Wear> {
   const id = typeof when === 'string' ? when : localDateKey(when);
 
-  // Refused here rather than only in the UI, because the date is the primary
-  // key: a future row would sit at the top of the log and hold `lastWornAt`
-  // ahead of every real wear indefinitely. String comparison is a correct date
-  // comparison for this format precisely because it is fixed-width and
-  // zero-padded — it looks like a bug otherwise, so: it isn't.
-  if (id > localDateKey()) throw new Error('That day has not happened yet.');
-
   const entry: Wear = { id, wornAt: noonOn(id), memberIds, outfitId, note: '' };
 
   const affected = await db.transaction('rw', db.items, db.wears, async () => {
@@ -115,10 +108,12 @@ export async function removeWear(id: string): Promise<void> {
 export async function recomputeWearStats(itemIds: string[]): Promise<void> {
   if (itemIds.length === 0) return;
   const wears = await db.wears.toArray();
+  // Read once, so every item in this pass is judged against the same day.
+  const todayKey = localDateKey();
 
   await db.transaction('rw', db.items, async () => {
     for (const id of itemIds) {
-      const { lastWornAt, wearCount } = deriveWearStats(id, wears);
+      const { lastWornAt, wearCount } = deriveWearStats(id, wears, todayKey);
       // Touch `updatedAt` only when something actually moved: this runs on
       // every log write, and a no-op write would still wake every live query
       // watching the wardrobe.
@@ -138,12 +133,44 @@ export async function recomputeWearStats(itemIds: string[]): Promise<void> {
 export function deriveWearStats(
   itemId: string,
   wears: Wear[],
+  /** Local date. Entries after it are plans, and a plan is not a wear. */
+  todayKey: string = localDateKey(),
 ): { lastWornAt: number | null; wearCount: number } {
-  const mine = wears.filter((wear) => wear.memberIds.includes(itemId));
+  // A day in the future is an intention, not a record. Counting it would tell
+  // the wardrobe's sort and the randomizer's neglect weighting that clothes
+  // laid out for a trip next week have already been worn — the app would stop
+  // suggesting them before you had put them on.
+  //
+  // Derived from the date rather than stored on the entry, deliberately: there
+  // is one kind of entry, the outfit of a day, and whether it has happened yet
+  // is a fact about the calendar, not a property of the outfit.
+  const mine = wears.filter(
+    (wear) => wear.id <= todayKey && wear.memberIds.includes(itemId),
+  );
   return {
     lastWornAt: mine.length > 0 ? Math.max(...mine.map((w) => w.wornAt)) : null,
     wearCount: mine.length,
   };
+}
+
+/**
+ * Bring every item's cached wear stats up to date with the calendar.
+ *
+ * `lastWornAt` and `wearCount` are recomputed whenever the log changes — but a
+ * plan becomes a wear through the passage of time, with nothing written.
+ * Yesterday's plan is today's record, and no code ran in between.
+ *
+ * Cheap enough for every launch: the log is one row a day, and
+ * `recomputeWearStats` already skips the write when nothing moved, so a
+ * wardrobe with no newly-matured plans does no work at all.
+ */
+export async function settleWearStats(): Promise<void> {
+  const wears = await db.wears.toArray();
+  const todayKey = localDateKey();
+  const affected = [
+    ...new Set(wears.filter((wear) => wear.id <= todayKey).flatMap((wear) => wear.memberIds)),
+  ];
+  await recomputeWearStats(affected);
 }
 
 /** The feed: every day logged, most recent first. */

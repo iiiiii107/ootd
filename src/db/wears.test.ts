@@ -110,3 +110,55 @@ describe('a back-dated entry', () => {
     expect(deriveWearStats('top', enteredOutOfOrder).lastWornAt).toBe(noonOn('2026-09-05'));
   });
 });
+
+/**
+ * Planning ahead. There is no separate kind of entry — a day has an outfit,
+ * and whether it counts as worn is decided by the date alone.
+ */
+describe('a day still ahead', () => {
+  const noonOn = (key: string) => {
+    const [y, m, d] = key.split('-').map(Number);
+    return new Date(y, m - 1, d, 12).getTime();
+  };
+  const today = '2026-09-10';
+
+  it('does not count as worn', () => {
+    // Clothes laid out for a trip next week have not been worn. Counting them
+    // would stop the randomizer suggesting them before you had put them on.
+    const log = [wear('2026-09-17', noonOn('2026-09-17'), ['shirt'])];
+    expect(deriveWearStats('shirt', log, today)).toEqual({ lastWornAt: null, wearCount: 0 });
+  });
+
+  it('starts counting on the day it arrives, with nothing written', () => {
+    // The same entry, judged against a later "today". This is why the cached
+    // stats need settling at launch: a plan becomes a wear through time
+    // passing, and no code runs in between.
+    const log = [wear('2026-09-17', noonOn('2026-09-17'), ['shirt'])];
+    expect(deriveWearStats('shirt', log, '2026-09-17')).toEqual({
+      lastWornAt: noonOn('2026-09-17'),
+      wearCount: 1,
+    });
+  });
+
+  it('leaves the last real wear standing', () => {
+    // A plan must not become `lastWornAt` just by being the furthest ahead.
+    const log = [
+      wear('2026-09-08', noonOn('2026-09-08'), ['shirt']),
+      wear('2026-09-20', noonOn('2026-09-20'), ['shirt']),
+    ];
+    expect(deriveWearStats('shirt', log, today).lastWornAt).toBe(noonOn('2026-09-08'));
+  });
+
+  it('counts today itself as worn, not as a plan', () => {
+    const log = [wear(today, noonOn(today), ['shirt'])];
+    expect(deriveWearStats('shirt', log, today).wearCount).toBe(1);
+  });
+
+  it('does not count a plan toward how often something is worn', () => {
+    const log = [
+      wear('2026-09-01', noonOn('2026-09-01'), ['shirt']),
+      wear('2026-09-30', noonOn('2026-09-30'), ['shirt']),
+    ];
+    expect(deriveWearStats('shirt', log, today).wearCount).toBe(1);
+  });
+});

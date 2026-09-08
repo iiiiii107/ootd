@@ -102,6 +102,9 @@ export function DaySheet({
   const wear = useWear(dateKey);
   const members = useWearMembers(wear?.memberIds ?? []);
   const [picking, setPicking] = useState(false);
+  // Ahead of today this is a plan, behind it a record. The only difference is
+  // the wording and whether it counts as worn — there is one kind of entry.
+  const ahead = dateKey > todayKey;
 
   // Still reading. Nothing is worse here than flashing "nothing logged" at
   // someone who logged something.
@@ -111,8 +114,12 @@ export function DaySheet({
     return (
       <WardrobePicker
         initialIds={wear?.memberIds ?? []}
-        heading={`what you wore ${formatDay(dateKey, todayKey)}`}
-        saveLabel="log it"
+        heading={
+          ahead
+            ? `what you'll wear ${formatDay(dateKey, todayKey)}`
+            : `what you wore ${formatDay(dateKey, todayKey)}`
+        }
+        saveLabel={ahead ? 'plan it' : 'log it'}
         onClose={() => (picking ? setPicking(false) : onClose())}
         onSave={async (chosen) => {
           await logWear(
@@ -126,7 +133,8 @@ export function DaySheet({
   }
 
   async function forget() {
-    if (!window.confirm(`Remove ${formatDay(dateKey, todayKey)} from your ootds?`)) return;
+    const what = ahead ? 'plan for' : 'ootd for';
+    if (!window.confirm(`Remove the ${what} ${formatDay(dateKey, todayKey)}?`)) return;
     await removeWear(dateKey);
     onClose();
   }
@@ -134,7 +142,10 @@ export function DaySheet({
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-paper">
       <div className="flex items-center justify-between border-b border-rule px-5 py-3">
-        <p className="text-[15px] text-ink">{formatDay(dateKey, todayKey)}</p>
+        <p className="text-[15px] text-ink">
+          {formatDay(dateKey, todayKey)}
+          {ahead && <span className="ml-2 text-[12px] text-muted">planned</span>}
+        </p>
         <button type="button" onClick={onClose} className="min-h-11 px-2 text-[13px] text-muted">
           close
         </button>

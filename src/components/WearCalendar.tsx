@@ -22,6 +22,15 @@ import { ItemImage } from './ItemImage';
  *
  * A logged day shows its first garment rather than a dot. This is a wardrobe
  * app; its calendar should show clothes.
+ *
+ * Future days can be filled in too — laying out a week for a trip is the same
+ * gesture as recording one. There is no separate kind of entry for a plan: a
+ * day has an outfit, and whether that outfit has been worn yet is a fact about
+ * the date, not a property of the outfit. Plan something and change your mind,
+ * and you simply choose a different outfit for the day.
+ *
+ * Ahead of today they are shown faded, behind it solid — again from the date
+ * alone, so nothing can disagree about which is which.
  */
 export function WearCalendar() {
   const todayKey = localDateKey();
@@ -96,8 +105,8 @@ export function WearCalendar() {
 
       <p className="text-center text-[12px] leading-relaxed text-muted">
         {byDay.size === 0
-          ? 'Nothing logged this month. Tap any day to say what you wore.'
-          : 'Tap any day to change what you wore, or fill one in.'}
+          ? 'Nothing here yet. Tap any day to say what you wore — or a day ahead, to plan it.'
+          : 'Tap any day to change it. Days ahead are plans until they arrive.'}
       </p>
 
       {openDay && (
@@ -124,19 +133,23 @@ function DayCellButton({
 }) {
   const item = useItem(memberId ?? null);
 
-  const label = isFuture
-    ? `${day} — hasn't happened yet`
-    : pieces > 0
-      ? `${day} — ${pieces} ${pieces === 1 ? 'piece' : 'pieces'}`
-      : `${day} — nothing logged`;
+  const count = `${pieces} ${pieces === 1 ? 'piece' : 'pieces'}`;
+  const label =
+    pieces > 0
+      ? `${day} — ${count}${isFuture ? ', planned' : ''}`
+      : `${day} — ${isFuture ? 'nothing planned' : 'nothing logged'}`;
 
   return (
     <button
       type="button"
       onClick={onTap}
-      disabled={isFuture}
       aria-label={label}
-      className="relative aspect-square overflow-hidden rounded-chip border disabled:opacity-30"
+      // Faded ahead of today, solid behind it. A plan is a lighter thing than
+      // a record, and saying so with the date rather than a badge means the
+      // two can never disagree.
+      className={`relative aspect-square overflow-hidden rounded-chip border ${
+        isFuture ? 'opacity-45' : ''
+      }`}
       style={{
         borderColor: isToday ? 'var(--color-on)' : 'var(--color-rule)',
         borderWidth: isToday ? 2 : 1,
