@@ -45,7 +45,12 @@ export async function setGroupEnabled(groupId: string, enabled: boolean): Promis
   await setMeta(ENABLED_GROUPS_KEY, { ...(await getEnabledGroups()), [groupId]: enabled });
 }
 
-const MIGRATED_KEY = 'enabledGroupsMigrated';
+/**
+ * Exported so a restore can mark it settled: an archive's group choices are a
+ * decision already made, and the migration below must not second-guess them
+ * on the restored device's first launch (src/db/backup.ts).
+ */
+export const ENABLED_GROUPS_MIGRATED_KEY = 'enabledGroupsMigrated';
 
 /**
  * Keep any group that is already in use.
@@ -62,8 +67,8 @@ const MIGRATED_KEY = 'enabledGroupsMigrated';
  * must not undo a later decision to switch something off.
  */
 export async function migrateEnabledGroups(): Promise<void> {
-  if (await getMeta<boolean>(MIGRATED_KEY)) return;
-  await setMeta(MIGRATED_KEY, true);
+  if (await getMeta<boolean>(ENABLED_GROUPS_MIGRATED_KEY)) return;
+  await setMeta(ENABLED_GROUPS_MIGRATED_KEY, true);
 
   const items = await db.items.filter((item) => item.deletedAt == null).toArray();
   if (items.length === 0) return; // a fresh install has nothing to preserve

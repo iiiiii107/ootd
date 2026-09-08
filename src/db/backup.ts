@@ -1,5 +1,9 @@
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 
+import type { Appearance } from '../design/theme';
+import { DENSITY_MIGRATED_KEY, updateAppearance } from './appearance';
+import { type BackupSettings, pickBackupSettings, readBackupSettings } from './backupSettings';
+import { ENABLED_GROUPS_KEY, ENABLED_GROUPS_MIGRATED_KEY } from './groupSettings';
 import { setMeta } from './meta';
 import { db } from './schema';
 import type { CustomTag, Item, Wear } from './types';
@@ -20,31 +24,40 @@ type ManifestItem = Omit<Item, 'image' | 'thumb' | 'originalImage'>;
 
 interface Manifest {
   /**
-   * 2 adds the wear log. Read leniently rather than rejected on mismatch: a
-   * version-1 archive is still a complete wardrobe, it simply predates the
-   * log, and refusing to restore someone's clothes over a missing field
-   * would be the worst possible trade in this particular file.
+   * 2 adds the wear log, 3 the settings. Every version is read leniently
+   * rather than rejected on mismatch: an older archive is still a complete
+   * wardrobe, it simply predates a field, and refusing to restore someone's
+   * clothes over a missing key would be the worst possible trade in this
+   * particular file. Nothing here is ever required — the manifest is the
+   * only thing that is.
    */
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   exportedAt: number;
   items: ManifestItem[];
   tags: CustomTag[];
   wears?: Wear[];
+  settings?: BackupSettings;
 }
 
 export async function exportBackup(): Promise<Blob> {
   const items = await db.items.filter((item) => item.deletedAt == null).toArray();
   const tags = await db.tags.toArray();
   const wears = await db.wears.toArray();
+  // Read before the `lastBackupAt` write below, though it would make no
+  // difference: that key is not on the allow-list, and cannot be.
+  const settings = pickBackupSettings(await db.meta.toArray());
 
   const manifest: Manifest = {
-    version: 2,
+    version: 3,
     exportedAt: Date.now(),
     items: items.map(({ image: _image, thumb: _thumb, originalImage: _original, ...rest }) => rest),
     tags,
     // Plain JSON, no blobs: the log is references and dates. Without it a
     // restore would bring the wardrobe back and silently lose every ootd.
     wears,
+    // So a restored phone looks and behaves like the one it came from, not
+    // like a fresh install wearing someone else's clothes.
+    settings,
   };
 
   const files: Record<string, Uint8Array> = {
@@ -74,6 +87,30 @@ export async function exportBackup(): Promise<Blob> {
 export interface ImportSummary {
   itemCount: number;
   tagCount: number;
+  settingsRestored: boolean;
+}
+
+/**
+ * The stored type of a photo, read from the file rather than assumed.
+ *
+ * Cutouts are WebP, because that is the only format here that keeps an alpha
+ * channel; plain crops are JPEG. The archive does not record which is which
+ * (the paths all end `.jpg`, from before cutouts existed), so a restore used
+ * to label every blob `image/jpeg`. That mostly worked — `createImageBitmap`
+ * and `<img>` both sniff the bytes and ignore the label — but "mostly" is
+ * doing a lot of work in a file whose whole job is that nothing is lost, and
+ * the colour backfill now reads alpha out of exactly these blobs.
+ */
+function imageType(bytes: Uint8Array): string {
+  if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[8] === 0x57 && bytes[9] === 0x45) {
+    return 'image/webp'; // 'RIFF' … 'WE' of 'WEBP'
+  }
+  if (bytes[0] === 0x89 && bytes[1] === 0x50) return 'image/png';
+  return 'image/jpeg';
+}
+
+function toBlob(bytes: Uint8Array): Blob {
+  return new Blob([bytes as BlobPart], { type: imageType(bytes) });
 }
 
 export async function importBackup(file: Blob): Promise<ImportSummary> {
@@ -99,11 +136,11 @@ export async function importBackup(file: Blob): Promise<ImportSummary> {
     const original = files[`originals/${meta.id}.jpg`];
     return {
       ...meta,
-      image: new Blob([image as BlobPart], { type: 'image/jpeg' }),
-      thumb: new Blob([thumb as BlobPart], { type: 'image/jpeg' }),
+      image: toBlob(image),
+      thumb: toBlob(thumb),
       // Absent for anything whose background was never removed, and for
       // archives written before originals were kept.
-      originalImage: original ? new Blob([original as BlobPart], { type: 'image/jpeg' }) : null,
+      originalImage: original ? toBlob(original) : null,
     };
   });
 
@@ -118,5 +155,59 @@ export async function importBackup(file: Blob): Promise<ImportSummary> {
     if (manifest.wears?.length) await db.wears.bulkPut(manifest.wears);
   });
 
-  return { itemCount: items.length, tagCount: manifest.tags.length };
+  // Deliberately after the transaction has committed, in its own try/catch: a
+  // setting this build cannot make sense of must never take the clothes down
+  // with it. The wardrobe is the irreplaceable half of this file; a colour
+  // preference can be set again in ten seconds.
+  let settingsRestored = false;
+  try {
+    settingsRestored = await restoreSettings(readBackupSettings(manifest.settings));
+  } catch {
+    // Nothing to tell the user: their wardrobe is back, and the app is
+    // sitting on its defaults, which is exactly where it started.
+  }
+
+  return { itemCount: items.length, tagCount: manifest.tags.length, settingsRestored };
+}
+
+/**
+ * Write restored settings back through the app's own setters.
+ *
+ * `updateAppearance` rather than `db.meta.put` is the non-obvious part: it is
+ * the only thing that writes the synchronous localStorage mirror *and* puts
+ * the palette on the document. A direct meta write would restore a theme that
+ * did not appear until a reload, and was then overwritten at the next launch
+ * by a mirror that still held the defaults.
+ *
+ * The two migration flags are set alongside their settings. Both migrations
+ * exist to move an install that never made a choice; an archive is a choice,
+ * already made, and letting them run over a fresh restore would quietly
+ * undo it on the first launch.
+ */
+async function restoreSettings(settings: BackupSettings): Promise<boolean> {
+  if (settings.appearance) {
+    // A merge, not a replacement, because that is what `updateAppearance` is
+    // — and it comes to the same thing: every appearance write stores the
+    // whole object, so an archive that carries one carries all of it.
+    await updateAppearance(settings.appearance as Partial<Appearance>);
+    await setMeta(DENSITY_MIGRATED_KEY, true);
+  }
+  if (settings.enabledGroups) {
+    await setMeta(ENABLED_GROUPS_KEY, settings.enabledGroups);
+    await setMeta(ENABLED_GROUPS_MIGRATED_KEY, true);
+  }
+  // The rest are plain values with no mirror and nothing to apply, so `meta`
+  // is genuinely all there is to write. The hooks that read them are live
+  // queries, so the Settings screen updates itself.
+  const plain = [
+    'autoDetectEnabled',
+    'backgroundRemovalEnabled',
+    'segmentationModel',
+    'colourPreferences',
+  ] as const;
+  for (const key of plain) {
+    if (settings[key] !== undefined) await setMeta(key, settings[key]);
+  }
+
+  return Object.keys(settings).length > 0;
 }

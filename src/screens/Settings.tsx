@@ -532,7 +532,8 @@ function BackupSection() {
     setStatus('Importing…');
     try {
       const summary = await importBackup(file);
-      setStatus(`Imported ${summary.itemCount} item${summary.itemCount === 1 ? '' : 's'} and ${summary.tagCount} tag${summary.tagCount === 1 ? '' : 's'}.`);
+      const settings = summary.settingsRestored ? ', and your settings' : '';
+      setStatus(`Imported ${summary.itemCount} item${summary.itemCount === 1 ? '' : 's'}, ${summary.tagCount} tag${summary.tagCount === 1 ? '' : 's'}${settings}.`);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : 'That file could not be read as an ootd backup.');
     }
@@ -542,7 +543,8 @@ function BackupSection() {
     <Section title="Backup">
       <p className="text-[12px] leading-relaxed text-muted">
         Your wardrobe lives only on this device. Export a backup regularly and keep it somewhere
-        safe — re-photographing everything is not a fun afternoon.
+        safe — re-photographing everything is not a fun afternoon. A backup carries your clothes,
+        your tags, your ootds and your settings, so a new phone looks like the old one.
       </p>
       <div className="flex gap-3">
         <button type="button" onClick={() => void handleExport()} className="min-h-11 flex-1 rounded-chip border border-ink text-[13px] text-ink">

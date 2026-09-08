@@ -102,7 +102,7 @@ The five built-in groups (category, season, formality, location, vibe) are hardc
 
 ### 4.3 `meta`
 
-Key-value store: `lastBackupAt`, `lastFilterState`, `schemaVersion`, `settings`.
+Key-value store: `lastBackupAt`, `lastFilterState`, `schemaVersion`, `settings`. Which of these travel in a backup is a deliberate subset — see §7.10.
 
 ### 4.4 Deletion, archiving, trash
 
@@ -271,6 +271,23 @@ With the inside protected, the floor could finally be raised (96 → 128), which
 **Background removal is reversible.** The photograph as it was before the cut is kept in `originalImage`, and "put the background back" swaps it in and rebuilds the thumbnail. This is the only way the option can exist: removal is destructive, the cut pixels are gone from `image`, and nothing recovers them after the fact. Only the full-size copy is kept — the thumbnail is derived and cheap to rebuild, so storing it too would be a second copy for nothing. The eraser keeps the same copy, but only on its first pass, or a second round of tidying would overwrite the true original with an already-cut version.
 
 Backups carry originals, and `originalImage` is cleared on restore, since the image *is* the original then.
+
+### 7.10 What a backup carries
+
+Manifest version 3 adds a `settings` object beside the items, tags and wear log. Every version is read leniently — an older archive is a complete wardrobe that simply predates a field, and refusing to restore someone's clothes over a missing key would be the worst trade available in this file.
+
+**An explicit allow-list, not a dump of `meta`.** Carried: `appearance`, the two photo switches, the model choice, `colourPreferences`, `enabledGroups`. Left behind, and the reasons are the design:
+
+- **`lastBackupAt`** would tell a phone that has never exported anything that it is up to date. The 30-day nag exists for precisely that phone.
+- **Filter, sort and tab state** would restore a wardrobe with most of it hidden, in the one moment the user is least able to tell that apart from data loss.
+- **Migration flags** are bookkeeping about what an install has already done, not preferences — but a restore sets them, because an archive *is* a choice already made and a one-time migration must not revisit it on the first launch.
+- **Anything added later** does nothing until somebody names it. That is the point of the list: the alternative fails silently, on the far phone, months later.
+
+The list is applied on the way in as well as out. An archive is a file from outside, and the receiving build's list is the only one that can be trusted.
+
+**Restored through the app's own setters, not `db.meta.put`.** `updateAppearance` is the only thing that writes the synchronous localStorage mirror *and* puts the palette on the document; a direct meta write restores a theme that does not appear until a reload and is then overwritten at the next launch by a mirror still holding the defaults. Verified in the browser: the paper colour went from `#efe9d8` to `#201e1b` on import, without a reload.
+
+Settings are restored **after** the wardrobe transaction commits, in their own `try`/`catch`. The clothes are the irreplaceable half of the file; a colour preference can be set again in ten seconds.
 
 **A large removal warns rather than being refused.** A share-of-the-whole-image cap was tried first and was worse than nothing: a garment occupying a fifth of the frame sat under any sensible cap, so tapping it erased the lot silently, while a genuinely large background would have been blocked for no reason — it fired in exactly the wrong cases. The share is now measured against *visible* pixels, and a big one only says so. Undo is the safety net; a tool that sometimes refuses a legitimate tap is worse than one that is simply reversible.
 

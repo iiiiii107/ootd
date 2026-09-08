@@ -85,7 +85,7 @@ Still open: the last of the design pass — type scale and spacing judged agains
 | 3 | Randomizer + `pickOutfit` | done |
 | 4 | Outfits view, composites | done |
 | 5 | Background removal, design pass | background removal done; design pass done except what needs real photos |
-| 6 | Custom tags, export/import backup | done |
+| 6 | Custom tags, export/import backup (carries settings since v3) | done |
 | 6.5 | Crop + detection, tag on import, transparent cutouts, wardrobe controls | done |
 | 7 | Real-device testing | first run done; findings fixed |
 
@@ -151,3 +151,5 @@ src/
 ## Backup
 
 Local-only data can be lost — deleting the app, wiping the phone, or storage eviction takes the wardrobe with it. Export/import landed in Phase 6 and has been round-tripped through a full wipe — items, photos and custom tags all come back byte-identical. Use it.
+
+A backup now carries the settings too, so a restored phone *looks* like the one it came from rather than like a fresh install wearing someone else's clothes. Which settings travel is an explicit allow-list rather than a dump of the key-value store: `lastBackupAt` must never travel, filter and sort state would hand you a wardrobe with most of it hidden at the worst possible moment, and a dump would quietly start carrying whatever device-local key is added next.

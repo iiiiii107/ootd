@@ -16,11 +16,11 @@ export const APPEARANCE_KEY = 'appearance';
  * without clearing IndexedDB keeps the setting. This mirror is only a cache,
  * and losing it costs one frame of default styling while the real value loads.
  *
- * Note that the backup file (src/db/backup.ts) carries items and tags only, so
- * a restore onto a fresh device brings the wardrobe back but not the look of
- * it. That is worth fixing, but not by widening the backup format casually —
- * it is the one thing standing between the user and a re-photographed
- * wardrobe, and it has been round-tripped through a real wipe in this shape.
+ * The backup file carries the appearance too (src/db/backup.ts), and restores
+ * it through `updateAppearance` below rather than writing `meta` directly —
+ * that is the only path that also writes this mirror, and a restore that
+ * skipped it would come back looking right and then revert on the next
+ * launch, when `bootAppearance` read a mirror still holding the defaults.
  */
 const MIRROR_KEY = 'ootd:appearance';
 
@@ -59,7 +59,9 @@ export async function getAppearance(): Promise<Appearance> {
   return { ...DEFAULT_APPEARANCE, ...stored };
 }
 
-const DENSITY_MIGRATED_KEY = 'appearanceDensityDefault3';
+/** Exported for the same reason as the groups flag: a restored appearance is
+ *  a choice already made, and this migration must not revisit it. */
+export const DENSITY_MIGRATED_KEY = 'appearanceDensityDefault3';
 
 /**
  * The wardrobe's default went from two garments across to three.
