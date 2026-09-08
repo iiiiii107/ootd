@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import type { SortKey } from '../db/query';
 
 /**
@@ -28,6 +30,7 @@ export function SortRow({
   sortKey,
   reversed,
   onChange,
+  children,
 }: {
   count: number;
   /** Singular; pluralised with a bare "s". */
@@ -36,14 +39,25 @@ export function SortRow({
   sortKey: SortKey;
   reversed: boolean;
   onChange: (sortKey: SortKey, reversed: boolean) => void;
+  /** Optional category shortcuts, shown opposite the sort options. */
+  children?: ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-1 border-b border-rule pb-2">
-      <p className="text-[12px] text-muted">
-        {count} {noun}
-        {count === 1 ? '' : 's'}
-      </p>
-      <div className="-mx-1 flex gap-1 overflow-x-auto px-1">
+      {/*
+        The shortcuts share the count's line rather than the sort options'.
+        Beside the sorts they squeezed them into a scroller that cut "category"
+        in half on a phone; the count is one short phrase and has room to spare.
+      */}
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[12px] text-muted">
+          {count} {noun}
+          {count === 1 ? '' : 's'}
+        </p>
+        {children}
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="-mx-1 flex gap-1 overflow-x-auto px-1">
         {options.map((option) => {
           const active = sortKey === option;
           return (
@@ -61,6 +75,7 @@ export function SortRow({
             </button>
           );
         })}
+        </div>
       </div>
     </div>
   );

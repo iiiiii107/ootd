@@ -6,7 +6,14 @@ import type { Swatch } from '../logic/colour';
  * fields here are nullable or default to an empty value rather than absent.
  */
 
-export type Category = 'top' | 'bottom' | 'other' | 'outfit';
+/**
+ * `outfit` is not a garment — it is a saved combination, and it never appears
+ * in the wardrobe grid or the randomizer's pools (spec §7.3).
+ *
+ * `other` covers everything that is worn but is not one of the four places on
+ * the body: a bag, a belt, jewellery.
+ */
+export type Category = 'top' | 'bottom' | 'jacket' | 'shoes' | 'other' | 'outfit';
 
 /** No "transitional", no "all-year" value — a year-round item gets all four. */
 export type Season = 'spring' | 'summer' | 'autumn' | 'winter';

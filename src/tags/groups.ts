@@ -95,6 +95,8 @@ export const CATEGORY_GROUP: TagGroup = {
   options: [
     { value: 'top', label: 'top' },
     { value: 'bottom', label: 'bottom' },
+    { value: 'jacket', label: 'jacket' },
+    { value: 'shoes', label: 'shoes' },
     { value: 'other', label: 'other' },
   ],
   getValues: (item) => [item.category],

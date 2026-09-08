@@ -539,3 +539,128 @@ describe('pickOutfit with colour matching', () => {
     expect(result.status).toBe('ok');
   });
 });
+
+// --- jackets, shoes and accessories ---------------------------------------
+
+describe('the optional slots', () => {
+  const summer = { seasons: ['summer' as const], formality: 'casual' as const, vibe: null };
+  const winter = { seasons: ['winter' as const], formality: 'casual' as const, vibe: null };
+
+  const wardrobe = (extra: Item[] = []) => [
+    makeItem({ ...summer, category: 'top' }),
+    makeItem({ ...summer, category: 'bottom' }),
+    ...extra,
+  ];
+
+  it('leaves every slot empty when the switches are off', () => {
+    const result = pickOutfit(
+      wardrobe([
+        makeItem({ ...summer, category: 'jacket' }),
+        makeItem({ ...summer, category: 'shoes' }),
+        makeItem({ ...summer, category: 'other' }),
+      ]),
+      filters(),
+      [],
+      { rng: fixedRng(0) },
+    );
+    expect(result.status).toBe('ok');
+    if (result.status === 'ok') {
+      expect(result.outfit.jacket).toBeNull();
+      expect(result.outfit.shoes).toBeNull();
+      expect(result.outfit.accessory).toBeNull();
+    }
+  });
+
+  it('fills each slot when asked', () => {
+    const result = pickOutfit(
+      wardrobe([
+        makeItem({ ...summer, category: 'jacket' }),
+        makeItem({ ...summer, category: 'shoes' }),
+        makeItem({ ...summer, category: 'other' }),
+      ]),
+      filters({ includeJacket: true, includeShoes: true, addAccessory: true }),
+      [],
+      { rng: fixedRng(0) },
+    );
+    expect(result.status).toBe('ok');
+    if (result.status === 'ok') {
+      expect(result.outfit.jacket).not.toBeNull();
+      expect(result.outfit.shoes).not.toBeNull();
+      expect(result.outfit.accessory).not.toBeNull();
+    }
+  });
+
+  it('still returns an outfit when nothing fits the slot', () => {
+    // The rule for all three: omit the piece, never fail the shuffle. Owning no
+    // summer jacket must not stop you being dressed for summer.
+    const result = pickOutfit(
+      wardrobe([makeItem({ ...winter, category: 'jacket' })]),
+      filters({ includeJacket: true, includeShoes: true }),
+      [],
+      { rng: fixedRng(0) },
+    );
+    expect(result.status).toBe('ok');
+    if (result.status === 'ok') expect(result.outfit.jacket).toBeNull();
+  });
+
+  it('holds a jacket to the season as well as the formality', () => {
+    // A winter coat over a summer outfit is wrong in a way anyone would notice.
+    const summerJacket = makeItem({ ...summer, category: 'jacket' });
+    const result = pickOutfit(
+      wardrobe([makeItem({ ...winter, category: 'jacket' }), summerJacket]),
+      filters({ includeJacket: true }),
+      [],
+      { rng: fixedRng(0) },
+    );
+    if (result.status === 'ok') expect(result.outfit.jacket?.id).toBe(summerJacket.id);
+  });
+
+  it('does not hold shoes to the season', () => {
+    // Trainers are not seasonal the way a coat is, and demanding a season
+    // match would leave most wardrobes barefoot.
+    const winterShoes = makeItem({ ...winter, category: 'shoes' });
+    const result = pickOutfit(wardrobe([winterShoes]), filters({ includeShoes: true }), [], {
+      rng: fixedRng(0),
+    });
+    if (result.status === 'ok') expect(result.outfit.shoes?.id).toBe(winterShoes.id);
+  });
+
+  it('holds shoes to the formality', () => {
+    const formalShoes = makeItem({
+      seasons: ['summer'], formality: 'formal', vibe: null, category: 'shoes',
+    });
+    const result = pickOutfit(wardrobe([formalShoes]), filters({ includeShoes: true }), [], {
+      rng: fixedRng(0),
+    });
+    if (result.status === 'ok') expect(result.outfit.shoes).toBeNull();
+  });
+
+  it('lets an untagged piece into any outfit', () => {
+    // Same leniency as `compatible`: untagged is not the same as wrong, and
+    // tagging is never mandatory beyond category.
+    const untagged = makeItem({ category: 'jacket', seasons: [], formality: null, vibe: null });
+    const result = pickOutfit(wardrobe([untagged]), filters({ includeJacket: true }), [], {
+      rng: fixedRng(0),
+    });
+    if (result.status === 'ok') expect(result.outfit.jacket?.id).toBe(untagged.id);
+  });
+
+  it('never puts a jacket in the top or bottom pools', () => {
+    const result = pickOutfit(
+      [
+        makeItem({ ...summer, category: 'jacket' }),
+        makeItem({ ...summer, category: 'shoes' }),
+        makeItem({ ...summer, category: 'top' }),
+        makeItem({ ...summer, category: 'bottom' }),
+      ],
+      filters(),
+      [],
+      { rng: fixedRng(0) },
+    );
+    expect(result.status).toBe('ok');
+    if (result.status === 'ok') {
+      expect(result.outfit.top.category).toBe('top');
+      expect(result.outfit.bottom.category).toBe('bottom');
+    }
+  });
+});

@@ -41,7 +41,7 @@ interface CropTask {
 /** What the crop step hands back: a rectangle to keep, a photo to drop, or a screen that went away. */
 type CropDecision = CropRect | 'discard' | 'abandoned';
 
-const CATEGORIES: Category[] = ['top', 'bottom', 'other', 'outfit'];
+const CATEGORIES: Category[] = ['top', 'bottom', 'jacket', 'shoes', 'other', 'outfit'];
 
 /**
  * Camera or library picker, multi-select → per-photo crop → save → tag
@@ -490,5 +490,5 @@ async function applyCutoutWhenReady(
 
 /** Matches the `Top 14` shape `suggestName` produces — anything else is the user's own wording. */
 function isSuggestedName(name: string): boolean {
-  return /^(Top|Bottom|Other|Outfit) \d+$/.test(name);
+  return /^(Top|Bottom|Jacket|Shoes|Other|Outfit) \d+$/.test(name);
 }

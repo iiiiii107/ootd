@@ -122,3 +122,48 @@ export function BackIcon({ className }: { className?: string }) {
     </svg>
   );
 }
+
+/**
+ * The four garment categories, for the wardrobe's quick filter.
+ *
+ * Drawn rather than labelled because the row sits opposite the sort options
+ * and four more words there would crowd a phone. Same hairline stroke as the
+ * rest, sized off `currentColor` so the active one simply inherits the ink.
+ */
+export function TopIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4"
+      strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M7 3 4 5l1.5 2.5L7 6.5V17h6V6.5l1.5 1L16 5l-3-2a3 3 0 0 1-6 0Z" />
+    </svg>
+  );
+}
+
+export function BottomIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4"
+      strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M6 3h8l.5 14h-3.2L10 9l-1.3 8H5.5Z" />
+    </svg>
+  );
+}
+
+export function JacketIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4"
+      strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M7 3 4 5v12h12V5l-3-2" />
+      <path d="M7 3v14M13 3v14M10 5.5v3" />
+    </svg>
+  );
+}
+
+export function ShoesIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4"
+      strokeLinejoin="round" className={className} aria-hidden="true">
+      <path d="M3 13V7h3l2.5 3H14a3 3 0 0 1 3 3v1H3Z" />
+      <path d="M3 14h14" />
+    </svg>
+  );
+}

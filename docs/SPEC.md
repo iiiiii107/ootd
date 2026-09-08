@@ -282,6 +282,26 @@ It was diagnosable precisely because **the same garment still drew correctly ins
 
 So every garment photo renders through one component that recovers: on failure it discards the cached URL, asks for a new one, and if that also fails falls back to the full-size image — a different blob entirely. Two attempts, then it stops, because a third would loop forever on a genuinely undecodable photo.
 
+### 7.5b Jackets, shoes, and the four places on the body
+
+`Category` is `top | bottom | jacket | shoes | other | outfit`. Purely additive — existing garments keep the category they had, so there is nothing to migrate. `other` remains the catch-all for what is worn but sits nowhere in particular: a bag, a belt, jewellery.
+
+**Three optional slots on the randomizer**, each an independent switch: a jacket, shoes, an accessory. None implies another, because not every outfit wants any of them.
+
+**How strictly each has to agree**, and the reasoning matters more than the rule:
+
+- A **jacket** must match season *and* formality. A winter coat over a summer dress is wrong in a way anyone would notice, and so is a blazer with loungewear.
+- **Shoes** match formality only. Trainers and boots are not seasonal the way a coat is, and demanding a season match leaves most wardrobes barefoot.
+- An **accessory** matches neither. A bag goes with what it goes with, and colour is already doing that work.
+
+Each is judged against *both* halves of the outfit: a jacket that suits the top but not the trousers has been matched to half an outfit. Untagged passes, exactly as `compatible` treats it — tagging is never mandatory beyond category.
+
+**A slot that cannot be filled is omitted, never fatal.** Owning no summer jacket must not stop you being dressed for summer.
+
+**The result reads like a body, not a list.** Top and bottom hold the centre because they are the outfit; the jacket hangs left of the top, shoes sit under the bottom, and the accessory sits at the waist on the right, spanning both garment rows so it lands on the seam. Empty slots collapse rather than leaving a gap. Supporting pieces are smaller and deliberately not lockable — locking exists to keep half an outfit while reshuffling the rest, and the half worth keeping is the pair.
+
+**Wardrobe quick filter.** Four category icons opposite the item count, driving `filters.groups.category` — the same state the search panel's chips edit, so the two can never disagree. One at a time; tapping the active one clears it. `other` gets no shortcut: it is the catch-all, so a button for it would mean "everything that is not one of these", which nobody goes looking for.
+
 ### 7.6 ootds — the wear log
 
 Two things live on the Outfits screen, related but not the same: **recently worn** (the default) and **saved**.

@@ -8,7 +8,15 @@ import { OutfitBuilder } from '../components/OutfitBuilder';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { SearchBar } from '../components/SearchBar';
 import { SortRow } from '../components/SortRow';
-import { BasketIcon, HeartIcon, SearchIcon } from '../components/icons';
+import {
+  BasketIcon,
+  BottomIcon,
+  HeartIcon,
+  JacketIcon,
+  SearchIcon,
+  ShoesIcon,
+  TopIcon,
+} from '../components/icons';
 import { useWardrobeItems } from '../db/hooks';
 import { getMeta, setMeta } from '../db/meta';
 import { DEFAULT_FILTER_STATE, filterItems, sortItems, type FilterState, type SortKey } from '../db/query';
@@ -19,6 +27,19 @@ const SORT_KEY_KEY = 'wardrobeSortKey';
 const SORT_REVERSED_KEY = 'wardrobeSortReversed';
 
 const SORT_OPTIONS: SortKey[] = ['lastWorn', 'newest', 'name', 'category'];
+
+/**
+ * The four places on the body, as one-tap filters. `other` is deliberately
+ * absent — it is the catch-all, so a shortcut for it would mean "everything
+ * that is not one of these", which is not a thing anybody goes looking for.
+ * It is still reachable from the full filter panel.
+ */
+const CATEGORY_SHORTCUTS = [
+  { value: 'top', label: 'tops', Icon: TopIcon },
+  { value: 'bottom', label: 'bottoms', Icon: BottomIcon },
+  { value: 'jacket', label: 'jackets', Icon: JacketIcon },
+  { value: 'shoes', label: 'shoes', Icon: ShoesIcon },
+] as const;
 
 /**
  * Search, generic tag filters, sort, the detail sheet, and bulk multi-select
@@ -171,7 +192,43 @@ export default function Wardrobe() {
         sortKey={sortKey}
         reversed={sortReversed}
         onChange={chooseSort}
-      />
+      >
+        {/*
+          Category shortcuts, opposite the sort options. They drive
+          `filters.groups.category` — the very state the search panel's chips
+          edit — so the two can never disagree about what is being shown.
+
+          One at a time: tapping a category replaces whatever was selected, and
+          tapping the active one clears it. Several at once would need the row
+          to show which combination is on, and it is easy to lose track of what
+          you are looking at.
+        */}
+        <div className="flex shrink-0 gap-0.5">
+          {CATEGORY_SHORTCUTS.map(({ value, label, Icon }) => {
+            const active = (filters.groups.category ?? []).includes(value);
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() =>
+                  setFilters({
+                    ...filters,
+                    groups: { ...filters.groups, category: active ? [] : [value] },
+                  })
+                }
+                aria-pressed={active}
+                aria-label={active ? `Show everything again` : `Show only ${label}`}
+                title={label}
+                className={`flex min-h-9 min-w-9 items-center justify-center ${
+                  active ? 'text-accent' : 'text-muted'
+                }`}
+              >
+                <Icon className="h-[18px] w-[18px]" />
+              </button>
+            );
+          })}
+        </div>
+      </SortRow>
 
       {items.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 py-16 text-center">

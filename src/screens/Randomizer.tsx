@@ -25,12 +25,20 @@ const FILTERS_KEY = 'randomizerFilters';
 const HISTORY_SHUFFLES = 8;
 
 const SWITCHES: {
-  key: 'favoritesOnly' | 'includeInWash' | 'addAccessory' | 'matchColours';
+  key:
+    | 'favoritesOnly'
+    | 'includeInWash'
+    | 'includeJacket'
+    | 'includeShoes'
+    | 'addAccessory'
+    | 'matchColours';
   label: string;
 }[] = [
   { key: 'favoritesOnly', label: 'favorites only' },
   { key: 'includeInWash', label: 'include in the wash' },
-  { key: 'addAccessory', label: 'add an accessory' },
+  { key: 'includeJacket', label: 'include a jacket' },
+  { key: 'includeShoes', label: 'include shoes' },
+  { key: 'addAccessory', label: 'include an accessory' },
   { key: 'matchColours', label: 'colours that match' },
 ];
 
@@ -227,16 +235,53 @@ export default function Randomizer() {
 
       {result?.status === 'ok' && (
         <div key={shuffleCount} className="shuffle-result flex flex-col gap-3">
-          <ResultCard item={result.outfit.top} label="top" locked={!!lockedTop} onToggleLock={toggleLockTop} />
-          <ResultCard
-            item={result.outfit.bottom}
-            label="bottom"
-            locked={!!lockedBottom}
-            onToggleLock={toggleLockBottom}
-          />
-          {result.outfit.accessory && (
-            <ResultCard item={result.outfit.accessory} label="accessory" locked={false} onToggleLock={() => {}} lockable={false} />
-          )}
+          {/*
+            Laid out like a body rather than a list. Top and bottom hold the
+            centre because they are the outfit; the jacket hangs to the left of
+            the top, shoes sit under the bottom, and an accessory sits at the
+            waist on the right, spanning both garment rows so it lands on the
+            seam where they meet.
+
+            Empty slots collapse rather than leaving a gap — an outfit with no
+            jacket should look like an outfit, not like one with a hole in it.
+          */}
+          <div
+            className="mx-auto grid w-full max-w-[340px] items-center gap-2"
+            style={{ gridTemplateColumns: '1fr 1.6fr 1fr' }}
+          >
+            <div className="col-start-1 row-start-1">
+              {result.outfit.jacket && <SideCard item={result.outfit.jacket} label="jacket" />}
+            </div>
+            <div className="col-start-2 row-start-1">
+              <ResultCard
+                item={result.outfit.top}
+                label="top"
+                locked={!!lockedTop}
+                onToggleLock={toggleLockTop}
+              />
+            </div>
+            <div className="col-start-3 row-span-2 row-start-1 self-center">
+              {result.outfit.accessory && (
+                <SideCard item={result.outfit.accessory} label="accessory" />
+              )}
+            </div>
+
+            <div className="col-start-2 row-start-2">
+              <ResultCard
+                item={result.outfit.bottom}
+                label="bottom"
+                locked={!!lockedBottom}
+                onToggleLock={toggleLockBottom}
+              />
+            </div>
+
+            {/* Narrowed rather than left to fill the centre column: shoes are a
+                supporting piece, and at the pair's full width they read as
+                important as the outfit itself. */}
+            <div className="col-start-2 row-start-3 mx-auto w-3/5">
+              {result.outfit.shoes && <SideCard item={result.outfit.shoes} label="shoes" />}
+            </div>
+          </div>
 
           <div className="flex flex-wrap gap-2 pt-1">
             <button
@@ -274,6 +319,25 @@ export default function Randomizer() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * A supporting piece — jacket, shoes, accessory.
+ *
+ * Smaller than the top and bottom, and deliberately not lockable: locking
+ * exists so you can keep half an outfit and reshuffle the rest, and the half
+ * worth keeping is the pair. Four more locks would be four more things to
+ * reason about for very little.
+ */
+function SideCard({ item, label }: { item: Item; label: string }) {
+  return (
+    <div className="rounded-chip border border-rule">
+      <div className="aspect-square bg-paper">
+        <ItemImage item={item} className="h-full w-full object-contain" lazy={false} />
+      </div>
+      <p className="truncate px-1 py-0.5 text-center text-[10px] text-muted">{label}</p>
     </div>
   );
 }

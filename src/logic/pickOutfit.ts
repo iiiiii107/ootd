@@ -1,4 +1,4 @@
-import type { Formality, Item, Location, Season, Vibe } from '../db/types';
+import type { Category, Formality, Item, Location, Season, Vibe } from '../db/types';
 import { paletteAffinity, paletteHarmony, type ColourPreferences } from './colour';
 
 const NEGLECT_MS = 30 * 24 * 60 * 60 * 1000; // 30 days, spec §7.1
@@ -25,6 +25,10 @@ export interface RandomizerFilters {
   /** Off by default — the randomizer excludes wash items unless this is on (spec §6). */
   includeInWash: boolean;
   /** Off by default — also returns one compatible `other` item when on. */
+  /** Add a jacket, if one fits. */
+  includeJacket: boolean;
+  /** Add shoes, if any fit. */
+  includeShoes: boolean;
   addAccessory: boolean;
   /**
    * Prefer garments whose colours go together. On by default — the app's own
@@ -47,6 +51,8 @@ export const DEFAULT_RANDOMIZER_FILTERS: RandomizerFilters = {
   vibe: [],
   favoritesOnly: false,
   includeInWash: false,
+  includeJacket: false,
+  includeShoes: false,
   addAccessory: false,
   matchColours: true,
   allowMixedVibe: false,
@@ -62,6 +68,9 @@ export type ShuffleHistory = string[][];
 export interface PickedOutfit {
   top: Item;
   bottom: Item;
+  /** Optional slots — null when switched off, or when nothing in the wardrobe fits. */
+  jacket: Item | null;
+  shoes: Item | null;
   accessory: Item | null;
 }
 
@@ -240,11 +249,23 @@ export function pickOutfit(items: Item[], filters: RandomizerFilters, history: S
   const pair = pickPair(tops, bottoms, filters, history, now, rng, options, colour);
   if (!pair) return { status: 'empty', reason: 'no-compatible-pair' };
 
-  const accessory = filters.addAccessory
-    ? pickAccessory(items, filters, history, now, rng, colour, pair)
-    : null;
+  // The three optional slots. Each is *omitted* rather than failing the
+  // shuffle when nothing qualifies — the same rule the accessory has always
+  // followed. An outfit with no jacket is an outfit; a shuffle that refuses to
+  // produce one because you own no summer coat is a bug.
+  const extra = (category: Category, rule: SlotRule) =>
+    pickForSlot(items, category, rule, filters, history, now, rng, colour, pair);
 
-  return { status: 'ok', outfit: { top: pair.top, bottom: pair.bottom, accessory } };
+  return {
+    status: 'ok',
+    outfit: {
+      top: pair.top,
+      bottom: pair.bottom,
+      jacket: filters.includeJacket ? extra('jacket', 'season-and-formality') : null,
+      shoes: filters.includeShoes ? extra('shoes', 'formality') : null,
+      accessory: filters.addAccessory ? extra('other', 'anything') : null,
+    },
+  };
 }
 
 function pickPair(
@@ -304,8 +325,33 @@ function pickPair(
   return null;
 }
 
-function pickAccessory(
+/**
+ * How strictly a supporting piece has to agree with the outfit.
+ *
+ * A jacket is held to season *and* formality: a winter coat over a summer
+ * dress is wrong in a way anyone would notice, and so is a blazer with
+ * loungewear. Shoes are held to formality only — trainers and boots are not
+ * seasonal in the way a coat is, and demanding a season match would leave most
+ * wardrobes barefoot. An accessory is held to neither; a bag goes with what it
+ * goes with, and colour is doing that work.
+ */
+type SlotRule = 'season-and-formality' | 'formality' | 'anything';
+
+function fitsOutfit(candidate: Item, pair: { top: Item; bottom: Item }, rule: SlotRule): boolean {
+  if (rule === 'anything') return true;
+  // Against both halves: a jacket that suits the top but not the trousers has
+  // not been matched to the outfit, only to half of it. An untagged value on
+  // either side passes, exactly as `compatible` treats it.
+  const agrees = (a: Item, b: Item) =>
+    (a.formality == null || b.formality == null || a.formality === b.formality) &&
+    (rule !== 'season-and-formality' || seasonsOverlap(a, b));
+  return agrees(candidate, pair.top) && agrees(candidate, pair.bottom);
+}
+
+function pickForSlot(
   items: Item[],
+  category: Category,
+  rule: SlotRule,
   filters: RandomizerFilters,
   history: ShuffleHistory,
   now: number,
@@ -313,11 +359,13 @@ function pickAccessory(
   colour: ColourPreferences | undefined,
   pair: { top: Item; bottom: Item },
 ): Item | null {
-  const others = items.filter((i) => i.category === 'other' && passesFilters(i, filters));
-  if (others.length === 0) return null;
-  // Judged against both halves of the outfit rather than one, so an accessory
-  // is chosen for the look and not for the top it happens to sit nearest.
-  return weightedPick(others, history, now, rng, colour?.liked ?? [], (o) =>
+  const pool = items.filter(
+    (i) => i.category === category && passesFilters(i, filters) && fitsOutfit(i, pair, rule),
+  );
+  if (pool.length === 0) return null;
+  // Judged against both halves of the outfit rather than one, so a piece is
+  // chosen for the look and not for the garment it happens to sit nearest.
+  return weightedPick(pool, history, now, rng, colour?.liked ?? [], (o) =>
     Math.min(harmonyMultiplier(pair.top, o, colour), harmonyMultiplier(pair.bottom, o, colour)),
   );
 }
