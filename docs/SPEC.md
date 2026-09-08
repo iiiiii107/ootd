@@ -322,6 +322,20 @@ Decisions worth keeping:
 
 No charting dependency: bars are divs, the month chart is a row of them, and colours come from the tag hues via inline custom properties.
 
+### 7.11 Ways to sort — optional tag groups
+
+Not everyone thinks about clothes in five dimensions, and meeting all of them on day one makes the app look like it is asking for homework. Each built-in group except **category** can be switched off in Settings. Vibe is **off by default**; the rest are on. Category is never switchable — it is the one tag required at save time (§4.1).
+
+**Hiding is not deleting.** The tags stay on the garments and return the moment the group is switched back on.
+
+**A hidden group is not consulted, either.** It disappears from the filter bar, the item editor, the randomizer's filter rows and the analytics breakdowns — and it stops constraining which garments the randomizer considers compatible. A rule shaping your outfits that you cannot see is what makes an app feel arbitrary. It is also ignored for filtering even when a stale saved filter still holds values for it, or hiding a group would leave an invisible filter quietly excluding half the wardrobe.
+
+**A one-time migration keeps what is already in use.** On first run, any group with garments already tagged stays on — so an existing wardrobe loses nothing and a new one starts simpler.
+
+This is the user's own idea ("if a tag is used, it should be there") put where it works. As a *live* rule it is circular: a hidden group cannot be used, so an unused one could never return on its own, and a group would vanish mid-use the moment its last tagged garment was deleted. As a migration it does exactly the right thing once.
+
+Every generic renderer picks this up for free by reading `useGroups()` — the same principle that lets a custom group appear without code changes. The randomizer's filter rows are the exception, gated explicitly, because each writes to a differently-typed field of the filter state.
+
 ### 7.6 ootds — the wear log
 
 Two things live on the Outfits screen, related but not the same: **recently worn** (the default) and **saved**.

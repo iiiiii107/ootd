@@ -83,7 +83,26 @@ export type PickResult =
   | { status: 'ok'; outfit: PickedOutfit }
   | { status: 'empty'; reason: PickFailureReason };
 
+/**
+ * Which tag dimensions are switched on (spec §7.5).
+ *
+ * A dimension the user has hidden is not consulted — not for filtering, and
+ * not for deciding whether two garments go together. Hiding a group means "I
+ * do not think about clothes this way", and a rule you cannot see shaping your
+ * outfits is exactly what makes an app feel arbitrary. The tags themselves are
+ * kept, and come back the moment the group is switched on again.
+ */
+export interface ActiveDimensions {
+  season: boolean;
+  formality: boolean;
+  vibe: boolean;
+}
+
+const ALL_DIMENSIONS: ActiveDimensions = { season: true, formality: true, vibe: true };
+
 export interface PickOptions {
+  /** Defaults to all on, so existing callers and tests are unaffected. */
+  dimensions?: ActiveDimensions;
   /** The user's colour rules and liked colours. Absent means colour is ignored. */
   colour?: ColourPreferences;
   /** Reshuffle only the bottom — the top is fixed to this item. */
@@ -96,22 +115,31 @@ export interface PickOptions {
   now?: number;
 }
 
-function passesFilters(item: Item, filters: RandomizerFilters): boolean {
+function passesFilters(
+  item: Item,
+  filters: RandomizerFilters,
+  dimensions: ActiveDimensions = ALL_DIMENSIONS,
+): boolean {
   if (item.archived || item.deletedAt != null) return false;
   if (!filters.includeInWash && item.inWash) return false;
   if (filters.favoritesOnly && !item.favorite) return false;
 
-  if (filters.seasons.length > 0) {
+  // A switched-off dimension is ignored even if a stale saved filter still
+  // holds values for it — otherwise hiding a group would leave an invisible
+  // filter quietly excluding half the wardrobe.
+  if (dimensions.season && filters.seasons.length > 0) {
     if (item.seasons.length === 0) return false;
     if (!item.seasons.some((s) => filters.seasons.includes(s))) return false;
   }
-  if (filters.formality.length > 0) {
+  if (dimensions.formality && filters.formality.length > 0) {
     if (!item.formality || !filters.formality.includes(item.formality)) return false;
   }
+  // Location is a filter only; it never takes part in whether two garments go
+  // together, so it has no entry in ActiveDimensions.
   if (filters.location.length > 0) {
     if (!item.location || !filters.location.includes(item.location)) return false;
   }
-  if (filters.vibe.length > 0) {
+  if (dimensions.vibe && filters.vibe.length > 0) {
     if (!item.vibe || !filters.vibe.includes(item.vibe)) return false;
   }
   return true;
@@ -135,11 +163,17 @@ export function compatible(
   a: Item,
   b: Item,
   filters: Pick<RandomizerFilters, 'allowMixedVibe' | 'seasons' | 'formality' | 'vibe'>,
+  dimensions: ActiveDimensions = ALL_DIMENSIONS,
 ): boolean {
+  // A dimension the user has switched off imposes no rule at all. Their vibe
+  // tags are still on the garments and come back untouched if they switch it
+  // on again; they simply are not consulted meanwhile.
   return (
-    (filters.seasons.length > 0 || seasonsOverlap(a, b)) &&
-    (filters.formality.length > 0 || formalityMatches(a, b)) &&
-    (filters.vibe.length > 0 || vibeCompatible(a, b, filters.allowMixedVibe))
+    (!dimensions.season || filters.seasons.length > 0 || seasonsOverlap(a, b)) &&
+    (!dimensions.formality || filters.formality.length > 0 || formalityMatches(a, b)) &&
+    (!dimensions.vibe ||
+      filters.vibe.length > 0 ||
+      vibeCompatible(a, b, filters.allowMixedVibe))
   );
 }
 
@@ -239,14 +273,15 @@ export function pickOutfit(items: Item[], filters: RandomizerFilters, history: S
   // means undefined all the way down, so every colour code path is skipped
   // rather than being asked to score neutrally.
   const colour = filters.matchColours ? options.colour : undefined;
+  const dimensions = options.dimensions ?? ALL_DIMENSIONS;
 
-  const tops = options.lockedTop ? [options.lockedTop] : items.filter((i) => i.category === 'top' && passesFilters(i, filters));
-  const bottoms = options.lockedBottom ? [options.lockedBottom] : items.filter((i) => i.category === 'bottom' && passesFilters(i, filters));
+  const tops = options.lockedTop ? [options.lockedTop] : items.filter((i) => i.category === 'top' && passesFilters(i, filters, dimensions));
+  const bottoms = options.lockedBottom ? [options.lockedBottom] : items.filter((i) => i.category === 'bottom' && passesFilters(i, filters, dimensions));
 
   if (tops.length === 0) return { status: 'empty', reason: 'no-tops' };
   if (bottoms.length === 0) return { status: 'empty', reason: 'no-bottoms' };
 
-  const pair = pickPair(tops, bottoms, filters, history, now, rng, options, colour);
+  const pair = pickPair(tops, bottoms, filters, history, now, rng, options, colour, dimensions);
   if (!pair) return { status: 'empty', reason: 'no-compatible-pair' };
 
   // The three optional slots. Each is *omitted* rather than failing the
@@ -254,7 +289,7 @@ export function pickOutfit(items: Item[], filters: RandomizerFilters, history: S
   // followed. An outfit with no jacket is an outfit; a shuffle that refuses to
   // produce one because you own no summer coat is a bug.
   const extra = (category: Category, rule: SlotRule) =>
-    pickForSlot(items, category, rule, filters, history, now, rng, colour, pair);
+    pickForSlot(items, category, rule, filters, history, now, rng, colour, pair, dimensions);
 
   return {
     status: 'ok',
@@ -276,13 +311,14 @@ function pickPair(
   now: number,
   rng: () => number,
   options: PickOptions,
-  colour?: ColourPreferences,
+  colour: ColourPreferences | undefined,
+  dimensions: ActiveDimensions,
 ): { top: Item; bottom: Item } | null {
   const liked = colour?.liked ?? [];
   // A locked side is fixed — there's nothing to retry, just find a compatible
   // partner for it directly rather than rejection-sampling against it.
   if (options.lockedTop) {
-    const compatibleBottoms = bottoms.filter((b) => compatible(options.lockedTop!, b, filters));
+    const compatibleBottoms = bottoms.filter((b) => compatible(options.lockedTop!, b, filters, dimensions));
     if (compatibleBottoms.length === 0) return null;
     return {
       top: options.lockedTop,
@@ -292,7 +328,7 @@ function pickPair(
     };
   }
   if (options.lockedBottom) {
-    const compatibleTops = tops.filter((t) => compatible(t, options.lockedBottom!, filters));
+    const compatibleTops = tops.filter((t) => compatible(t, options.lockedBottom!, filters, dimensions));
     if (compatibleTops.length === 0) return null;
     return {
       top: weightedPick(compatibleTops, history, now, rng, liked, (t) =>
@@ -312,7 +348,7 @@ function pickPair(
   // rather than hidden.
   for (let attempt = 0; attempt < MAX_TOP_ATTEMPTS; attempt++) {
     const top = weightedPick(tops, history, now, rng, liked);
-    const compatibleBottoms = bottoms.filter((b) => compatible(top, b, filters));
+    const compatibleBottoms = bottoms.filter((b) => compatible(top, b, filters, dimensions));
     if (compatibleBottoms.length > 0) {
       return {
         top,
@@ -337,14 +373,19 @@ function pickPair(
  */
 type SlotRule = 'season-and-formality' | 'formality' | 'anything';
 
-function fitsOutfit(candidate: Item, pair: { top: Item; bottom: Item }, rule: SlotRule): boolean {
+function fitsOutfit(
+  candidate: Item,
+  pair: { top: Item; bottom: Item },
+  rule: SlotRule,
+  dimensions: ActiveDimensions,
+): boolean {
   if (rule === 'anything') return true;
   // Against both halves: a jacket that suits the top but not the trousers has
   // not been matched to the outfit, only to half of it. An untagged value on
   // either side passes, exactly as `compatible` treats it.
   const agrees = (a: Item, b: Item) =>
-    (a.formality == null || b.formality == null || a.formality === b.formality) &&
-    (rule !== 'season-and-formality' || seasonsOverlap(a, b));
+    (!dimensions.formality || a.formality == null || b.formality == null || a.formality === b.formality) &&
+    (!dimensions.season || rule !== 'season-and-formality' || seasonsOverlap(a, b));
   return agrees(candidate, pair.top) && agrees(candidate, pair.bottom);
 }
 
@@ -358,9 +399,13 @@ function pickForSlot(
   rng: () => number,
   colour: ColourPreferences | undefined,
   pair: { top: Item; bottom: Item },
+  dimensions: ActiveDimensions,
 ): Item | null {
   const pool = items.filter(
-    (i) => i.category === category && passesFilters(i, filters) && fitsOutfit(i, pair, rule),
+    (i) =>
+      i.category === category &&
+      passesFilters(i, filters, dimensions) &&
+      fitsOutfit(i, pair, rule, dimensions),
   );
   if (pool.length === 0) return null;
   // Judged against both halves of the outfit rather than one, so a piece is

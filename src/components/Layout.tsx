@@ -3,6 +3,7 @@ import { Outlet } from 'react-router';
 
 import { migrateDensityDefault } from '../db/appearance';
 import { backfillPalettes } from '../db/backfillPalettes';
+import { migrateEnabledGroups } from '../db/groupSettings';
 import { purgeExpiredTrash } from '../db/items';
 import { settleWearStats } from '../db/wears';
 import { Notices } from './Notices';
@@ -34,6 +35,8 @@ export function Layout() {
     // A plan becomes a wear by the calendar moving, not by anything being
     // written, so the cached stats need settling on the way in.
     void settleWearStats();
+    // Keeps any tag group an existing wardrobe already uses (src/db/groupSettings.ts).
+    void migrateEnabledGroups();
   }, []);
 
   return (

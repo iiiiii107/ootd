@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { LockIcon } from '../components/icons';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { TagChipRow } from '../components/TagChipRow';
-import { useColourPreferences, useWardrobeItems } from '../db/hooks';
+import { useColourPreferences, useEnabledGroups, useWardrobeItems } from '../db/hooks';
 import { createOutfitFromMembers, favoriteMany } from '../db/items';
 import { logWearToday } from '../db/wears';
 import { getMeta, setMeta } from '../db/meta';
@@ -51,6 +51,15 @@ const SWITCHES: {
 export default function Randomizer() {
   const items = useWardrobeItems();
   const colour = useColourPreferences();
+  const enabledGroups = useEnabledGroups();
+  // A dimension switched off in Settings imposes no rule here either — see
+  // `ActiveDimensions`. Hiding a group must not leave it quietly shaping
+  // which outfits come up.
+  const dimensions = {
+    season: enabledGroups.season !== false,
+    formality: enabledGroups.formality !== false,
+    vibe: enabledGroups.vibe !== false,
+  };
 
   const [filters, setFilters] = useState<RandomizerFilters>(() => ({
     ...DEFAULT_RANDOMIZER_FILTERS,
@@ -97,6 +106,7 @@ export default function Randomizer() {
       lockedTop: lockedTop ?? undefined,
       lockedBottom: lockedBottom ?? undefined,
       colour,
+      dimensions,
     });
     setResult(next);
     setSavedOutfitId(null);
@@ -158,32 +168,46 @@ export default function Randomizer() {
       <ScreenTitle>randomizer</ScreenTitle>
 
       <div className="flex flex-col gap-3">
-        <TagChipRow
-          group={SEASON_GROUP}
-          selected={filters.seasons}
-          onToggle={(v) =>
-            setFilters({ ...filters, seasons: toggleInArray(filters.seasons, v as Season) })
-          }
-        />
-        <TagChipRow
-          group={FORMALITY_GROUP}
-          selected={filters.formality}
-          onToggle={(v) =>
-            setFilters({ ...filters, formality: toggleInArray(filters.formality, v as Formality) })
-          }
-        />
-        <TagChipRow
-          group={LOCATION_GROUP}
-          selected={filters.location}
-          onToggle={(v) =>
-            setFilters({ ...filters, location: toggleInArray(filters.location, v as Location) })
-          }
-        />
-        <TagChipRow
-          group={VIBE_GROUP}
-          selected={filters.vibe}
-          onToggle={(v) => setFilters({ ...filters, vibe: toggleInArray(filters.vibe, v as Vibe) })}
-        />
+        {/*
+          Named groups rather than a loop over `useGroups()`, because each row
+          writes to a differently-typed field on the filter state — but each is
+          gated on the same switch, or a group hidden in Settings would still
+          appear here, which is the one place it would be most confusing.
+        */}
+        {enabledGroups.season !== false && (
+          <TagChipRow
+            group={SEASON_GROUP}
+            selected={filters.seasons}
+            onToggle={(v) =>
+              setFilters({ ...filters, seasons: toggleInArray(filters.seasons, v as Season) })
+            }
+          />
+        )}
+        {enabledGroups.formality !== false && (
+          <TagChipRow
+            group={FORMALITY_GROUP}
+            selected={filters.formality}
+            onToggle={(v) =>
+              setFilters({ ...filters, formality: toggleInArray(filters.formality, v as Formality) })
+            }
+          />
+        )}
+        {enabledGroups.location !== false && (
+          <TagChipRow
+            group={LOCATION_GROUP}
+            selected={filters.location}
+            onToggle={(v) =>
+              setFilters({ ...filters, location: toggleInArray(filters.location, v as Location) })
+            }
+          />
+        )}
+        {enabledGroups.vibe !== false && (
+          <TagChipRow
+            group={VIBE_GROUP}
+            selected={filters.vibe}
+            onToggle={(v) => setFilters({ ...filters, vibe: toggleInArray(filters.vibe, v as Vibe) })}
+          />
+        )}
         {/*
           Wraps rather than scrolls: there are only a handful of these and they
           grow rarely, so a scroller only ever hid the last one off the right

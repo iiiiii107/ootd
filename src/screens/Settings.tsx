@@ -2,13 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 
 import { ScreenTitle } from '../components/ScreenTitle';
 import { TagGroupManager } from '../components/TagGroupManager';
+import { BUILTIN_GROUPS } from '../tags/groups';
 import { updateAppearance } from '../db/appearance';
 import { updateColourPreferences } from '../db/colour';
+import { isAlwaysOn, setGroupEnabled } from '../db/groupSettings';
 import { exportBackup, importBackup } from '../db/backup';
 import {
   useAppearance,
   useArchivedItems,
   useColourPreferences,
+  useEnabledGroups,
   usePendingPaletteCount,
   useAutoDetectEnabled,
   useCutoutEnabled,
@@ -50,6 +53,8 @@ export default function Settings() {
       <StorageSection />
       <CutoutSection />
       <BackupSection />
+
+      <TagGroupSwitches />
 
       <Section title="Tag groups">
         <TagGroupManager />
@@ -146,6 +151,50 @@ function CutoutSection() {
         {cutout || detect
           ? 'The model file downloads once, on the first photo.'
           : 'With both off, no model is downloaded at all, and importing is near-instant.'}
+      </p>
+    </Section>
+  );
+}
+
+/**
+ * Which ways of sorting a wardrobe this person actually uses.
+ *
+ * Not everyone thinks about clothes in five dimensions, and meeting all of
+ * them on day one makes the app look like it is asking for homework. Vibe
+ * especially: it is a genuinely useful axis for some people and meaningless to
+ * others.
+ *
+ * Switching one off hides it everywhere at once — the filter bar, the item
+ * editor, the analytics breakdowns — because all of those render whatever
+ * `useGroups` returns and none of them names a group directly. It also stops
+ * the randomizer consulting it, so there is never a rule shaping your outfits
+ * that you cannot see. Nothing is deleted: the tags stay on the garments and
+ * come back the moment you switch it on again.
+ */
+function TagGroupSwitches() {
+  const enabled = useEnabledGroups();
+  const optional = BUILTIN_GROUPS.filter((group) => !isAlwaysOn(group.id));
+
+  return (
+    <Section title="Ways to sort">
+      <p className="text-[12px] leading-relaxed text-muted">
+        Turn off any you do not use. Nothing is deleted — the tags stay on your
+        clothes and come back if you turn it on again.
+      </p>
+      {optional.map((group) => {
+        const on = enabled[group.id] !== false;
+        return (
+          <Toggle
+            key={group.id}
+            on={on}
+            onLabel={group.label}
+            offLabel={`${group.label} — hidden`}
+            onClick={() => void setGroupEnabled(group.id, !on)}
+          />
+        );
+      })}
+      <p className="text-[12px] leading-relaxed text-muted">
+        Category cannot be turned off — every garment needs one.
       </p>
     </Section>
   );

@@ -45,6 +45,8 @@ The randomizer's "wearing this today" now says so. It always did write correctly
 
 **Thumbnails that heal themselves.** Object URLs are cached and long-lived so editing doesn't re-decode the grid, but on a real phone a cached URL can stop resolving while the photo behind it is perfectly fine — the tile shows a broken-image mark for something that was never lost. Every garment picture now renders through one component that notices, throws the dead URL away and asks for a new one.
 
+**Ways to sort.** Every built-in tag group except category can be switched off in Settings, and vibe starts off — not everyone sorts clothes that way, and a new wardrobe should not open onto five dimensions of homework. Hiding is not deleting: the tags stay and come back if you switch it on again. A hidden group also stops constraining the randomizer, because a rule you cannot see shaping your outfits is worse than no rule. An existing wardrobe keeps any group it already uses.
+
 **Habits.** A chart control on the wardrobe and outfits opens one screen of statistics: how much of the wardrobe is actually in rotation, what you wear most and least, what you have never worn at all, days logged per month, what you own against what you actually wear for every tag group, and which colours you put together.
 
 Every number is computed from the wear log rather than from the cached counts on each garment — a screen whose job is to tell you the truth about your wardrobe should read the thing that is true, and a cache that has drifted then shows up rather than hiding.

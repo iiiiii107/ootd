@@ -4,6 +4,7 @@ import { DEFAULT_APPEARANCE, type Appearance } from '../design/theme';
 import { DEFAULT_MODEL, type ModelChoice } from '../images/cutout';
 import { DEFAULT_COLOUR_PREFERENCES, type ColourPreferences } from '../logic/colour';
 import { COLOUR_PREFERENCES_KEY } from './colour';
+import { ENABLED_GROUPS_KEY } from './groupSettings';
 import { PALETTE_VERSION, USER_SET_PALETTE } from './paletteVersion';
 import { APPEARANCE_KEY } from './appearance';
 import { db } from './schema';
@@ -250,4 +251,13 @@ export function useWearsInMonth(year: number, monthIndex: number): Wear[] | unde
 /** One day's entry, live. Undefined for a day with nothing logged. */
 export function useWear(dateKey: string | null): Wear | undefined {
   return useLiveQuery(() => (dateKey ? db.wears.get(dateKey) : undefined), [dateKey]);
+}
+
+/** Which built-in tag groups are switched on. Category is always among them. */
+export function useEnabledGroups(): Record<string, boolean> {
+  const value = useLiveQuery(async () => {
+    const entry = await db.meta.get(ENABLED_GROUPS_KEY);
+    return entry?.value as Record<string, boolean> | undefined;
+  }, []);
+  return { season: true, formality: true, location: true, vibe: false, ...value };
 }

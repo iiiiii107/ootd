@@ -664,3 +664,62 @@ describe('the optional slots', () => {
     }
   });
 });
+
+// --- switched-off dimensions ----------------------------------------------
+
+describe('a tag group the user has hidden', () => {
+  const OFF_VIBE = { season: true, formality: true, vibe: false };
+  const OFF_SEASON = { season: false, formality: true, vibe: true };
+
+  it('stops constraining which garments go together', () => {
+    // Masculine with feminine is normally refused. Hidden, vibe imposes no
+    // rule at all — a rule you cannot see shaping your outfits is exactly what
+    // makes an app feel arbitrary.
+    const top = makeItem({ category: 'top', vibe: 'masculine', seasons: ['summer'], formality: 'casual' });
+    const bottom = makeItem({ category: 'bottom', vibe: 'feminine', seasons: ['summer'], formality: 'casual' });
+
+    expect(pickOutfit([top, bottom], filters(), [], { rng: fixedRng(0) }).status).toBe('empty');
+    expect(
+      pickOutfit([top, bottom], filters(), [], { rng: fixedRng(0), dimensions: OFF_VIBE }).status,
+    ).toBe('ok');
+  });
+
+  it('stops filtering, even when a stale saved filter still holds values', () => {
+    // Hiding a group must not leave an invisible filter quietly excluding half
+    // the wardrobe — the saved filters outlive the switch.
+    const top = makeItem({ category: 'top', vibe: 'masculine' });
+    const bottom = makeItem({ category: 'bottom', vibe: 'masculine' });
+    const stale = filters({ vibe: ['feminine'] });
+
+    expect(pickOutfit([top, bottom], stale, [], { rng: fixedRng(0) }).status).toBe('empty');
+    expect(
+      pickOutfit([top, bottom], stale, [], { rng: fixedRng(0), dimensions: OFF_VIBE }).status,
+    ).toBe('ok');
+  });
+
+  it('stops holding a jacket to the season', () => {
+    const summer = { seasons: ['summer' as const], formality: 'casual' as const, vibe: null };
+    const wardrobe = [
+      makeItem({ ...summer, category: 'top' }),
+      makeItem({ ...summer, category: 'bottom' }),
+      makeItem({ seasons: ['winter'], formality: 'casual', vibe: null, category: 'jacket' }),
+    ];
+
+    const on = pickOutfit(wardrobe, filters({ includeJacket: true }), [], { rng: fixedRng(0) });
+    const off = pickOutfit(wardrobe, filters({ includeJacket: true }), [], {
+      rng: fixedRng(0),
+      dimensions: OFF_SEASON,
+    });
+
+    if (on.status === 'ok') expect(on.outfit.jacket).toBeNull();
+    if (off.status === 'ok') expect(off.outfit.jacket).not.toBeNull();
+  });
+
+  it('leaves everything exactly as it was when no dimensions are given', () => {
+    // Existing callers pass nothing; the default must be all-on, or hiding
+    // would silently become the norm.
+    const top = makeItem({ category: 'top', vibe: 'masculine', seasons: ['summer'], formality: 'casual' });
+    const bottom = makeItem({ category: 'bottom', vibe: 'feminine', seasons: ['summer'], formality: 'casual' });
+    expect(pickOutfit([top, bottom], filters(), [], { rng: fixedRng(0) }).status).toBe('empty');
+  });
+});

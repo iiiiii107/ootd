@@ -1,4 +1,5 @@
-import { useCustomTags } from '../db/hooks';
+import { useCustomTags, useEnabledGroups } from '../db/hooks';
+import { isAlwaysOn } from '../db/groupSettings';
 import type { CustomTag, Item } from '../db/types';
 import { BUILTIN_GROUPS, TAG_HUES, type TagGroup } from './groups';
 
@@ -40,6 +41,7 @@ function customGroup(groupName: string, rows: CustomTag[], index: number): TagGr
  */
 export function useGroups(): TagGroup[] {
   const customTags = useCustomTags() ?? [];
+  const enabled = useEnabledGroups();
   const byGroup = new Map<string, CustomTag[]>();
   for (const tag of customTags) {
     const rows = byGroup.get(tag.groupName) ?? [];
@@ -49,5 +51,12 @@ export function useGroups(): TagGroup[] {
   const custom = [...byGroup.entries()].map(([groupName, rows], index) =>
     customGroup(groupName, rows, index),
   );
-  return [...BUILTIN_GROUPS, ...custom];
+  // A built-in the user has switched off disappears from every generic
+  // renderer at once — the filter bar, the item editor, the analytics
+  // breakdowns — because they all read this list and none of them names a
+  // group directly. Category is never filtered: it is the one mandatory tag.
+  const builtins = BUILTIN_GROUPS.filter(
+    (group) => isAlwaysOn(group.id) || enabled[group.id] !== false,
+  );
+  return [...builtins, ...custom];
 }
