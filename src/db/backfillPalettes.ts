@@ -1,6 +1,7 @@
 import { paletteFromThumbAsync } from '../images/pipelineClient';
 import { mergeSwatches } from '../logic/colour';
-import { PALETTE_VERSION } from './paletteVersion';
+import { PALETTE_VERSION, USER_SET_PALETTE } from './paletteVersion';
+import type { Item } from './types';
 import { db } from './schema';
 
 /**
@@ -26,9 +27,7 @@ import { db } from './schema';
 const CHUNK = 8;
 
 export async function backfillPalettes(): Promise<number> {
-  const stale = await db.items
-    .filter((item) => item.paletteVersion !== PALETTE_VERSION && item.deletedAt == null)
-    .toArray();
+  const stale = await db.items.filter(needsReading).toArray();
   if (stale.length === 0) return 0;
 
   let done = 0;
@@ -86,7 +85,18 @@ async function write(id: string, palette: { hex: string; share: number }[]): Pro
 
 /** How many garments are still waiting, for Settings to show while it runs. */
 export async function pendingPaletteCount(): Promise<number> {
-  return db.items
-    .filter((item) => item.paletteVersion !== PALETTE_VERSION && item.deletedAt == null)
-    .count();
+  return db.items.filter(needsReading).count();
+}
+
+/**
+ * A garment whose colours are stale — but never one the user has corrected by
+ * hand. Their answer outranks ours by definition: they are looking at the
+ * garment and we are looking at a thumbnail.
+ */
+function needsReading(item: Item): boolean {
+  return (
+    item.deletedAt == null &&
+    item.paletteVersion !== PALETTE_VERSION &&
+    item.paletteVersion !== USER_SET_PALETTE
+  );
 }
