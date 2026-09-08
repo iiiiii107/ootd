@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { LockIcon } from '../components/icons';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { TagChipRow } from '../components/TagChipRow';
-import { useWardrobeItems } from '../db/hooks';
+import { useColourPreferences, useWardrobeItems } from '../db/hooks';
 import { createOutfitFromMembers, favoriteMany } from '../db/items';
 import { logWearToday } from '../db/wears';
 import { getMeta, setMeta } from '../db/meta';
@@ -24,10 +24,14 @@ import { FORMALITY_GROUP, LOCATION_GROUP, SEASON_GROUP, VIBE_GROUP } from '../ta
 const FILTERS_KEY = 'randomizerFilters';
 const HISTORY_SHUFFLES = 8;
 
-const SWITCHES: { key: 'favoritesOnly' | 'includeInWash' | 'addAccessory'; label: string }[] = [
+const SWITCHES: {
+  key: 'favoritesOnly' | 'includeInWash' | 'addAccessory' | 'matchColours';
+  label: string;
+}[] = [
   { key: 'favoritesOnly', label: 'favorites only' },
   { key: 'includeInWash', label: 'include in the wash' },
   { key: 'addAccessory', label: 'add an accessory' },
+  { key: 'matchColours', label: 'colours that match' },
 ];
 
 /**
@@ -37,6 +41,7 @@ const SWITCHES: { key: 'favoritesOnly' | 'includeInWash' | 'addAccessory'; label
  */
 export default function Randomizer() {
   const items = useWardrobeItems();
+  const colour = useColourPreferences();
 
   const [filters, setFilters] = useState<RandomizerFilters>(() => ({
     ...DEFAULT_RANDOMIZER_FILTERS,
@@ -64,7 +69,11 @@ export default function Randomizer() {
   useEffect(() => {
     void (async () => {
       const saved = await getMeta<RandomizerFilters>(FILTERS_KEY);
-      if (saved) setFilters(saved);
+      // Merged over the defaults, never assigned wholesale. A stored object
+      // written before a field existed comes back missing it, and a missing
+      // boolean reads as false — so a wholesale restore ships every new
+      // option switched off for exactly the people who already use the app.
+      if (saved) setFilters({ ...DEFAULT_RANDOMIZER_FILTERS, ...saved });
       setLoadedPersisted(true);
     })();
   }, []);
@@ -78,6 +87,7 @@ export default function Randomizer() {
     const next = pickOutfit(items, filters, history, {
       lockedTop: lockedTop ?? undefined,
       lockedBottom: lockedBottom ?? undefined,
+      colour,
     });
     setResult(next);
     setSavedOutfitId(null);
@@ -166,8 +176,8 @@ export default function Randomizer() {
           onToggle={(v) => setFilters({ ...filters, vibe: toggleInArray(filters.vibe, v as Vibe) })}
         />
         {/*
-          Wraps rather than scrolls: there are exactly three of these and they
-          never grow, so a scroller only ever hid the third one off the right
+          Wraps rather than scrolls: there are only a handful of these and they
+          grow rarely, so a scroller only ever hid the last one off the right
           edge behind a scrollbar. The tag rows above genuinely can grow —
           a custom group can hold any number of values — so those still scroll.
         */}

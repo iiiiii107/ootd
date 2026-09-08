@@ -1,4 +1,5 @@
 import type { Formality, Item, Location, Season, Vibe } from '../db/types';
+import { paletteAffinity, paletteHarmony, type ColourPreferences } from './colour';
 
 const NEGLECT_MS = 30 * 24 * 60 * 60 * 1000; // 30 days, spec §7.1
 const MAX_TOP_ATTEMPTS = 20;
@@ -26,6 +27,12 @@ export interface RandomizerFilters {
   /** Off by default — also returns one compatible `other` item when on. */
   addAccessory: boolean;
   /**
+   * Prefer garments whose colours go together. On by default — the app's own
+   * opinion is that this is what you want, and it can only reorder candidates,
+   * never remove them.
+   */
+  matchColours: boolean;
+  /**
    * Off by default, no UI switch for it yet (spec §7.1 lists only the six
    * filters above for the filter row) — masculine+feminine pairs are
    * rejected unless this is explicitly set true by a caller.
@@ -41,6 +48,7 @@ export const DEFAULT_RANDOMIZER_FILTERS: RandomizerFilters = {
   favoritesOnly: false,
   includeInWash: false,
   addAccessory: false,
+  matchColours: true,
   allowMixedVibe: false,
 };
 
@@ -67,6 +75,8 @@ export type PickResult =
   | { status: 'empty'; reason: PickFailureReason };
 
 export interface PickOptions {
+  /** The user's colour rules and liked colours. Absent means colour is ignored. */
+  colour?: ColourPreferences;
   /** Reshuffle only the bottom — the top is fixed to this item. */
   lockedTop?: Item;
   /** Reshuffle only the top — the bottom is fixed to this item. */
@@ -149,16 +159,56 @@ function recentlyShown(history: ShuffleHistory, id: string): boolean {
  * Favourites and neglected pieces resurface more; recently-shown pieces
  * decay hard so back-to-back shuffles don't just repeat themselves (spec §7.1).
  */
-export function weight(item: Item, history: ShuffleHistory, now: number): number {
+export function weight(
+  item: Item,
+  history: ShuffleHistory,
+  now: number,
+  liked: string[] = [],
+): number {
   let w = 1;
   if (item.favorite) w *= 1.4;
   if (item.lastWornAt == null || now - item.lastWornAt > NEGLECT_MS) w *= 1.5;
   if (recentlyShown(history, item.id)) w *= 0.2;
+  // A lean toward colours the user says they like, bounded at ×1.25 —
+  // deliberately below favourite (×1.4) and neglect (×1.5). The invariant
+  // worth stating: colour may reorder items within a band, never outrank the
+  // two signals that are about the wardrobe itself. Taste should not bury a
+  // favourite you have not worn in a month.
+  if (liked.length > 0) w *= 1 + 0.25 * paletteAffinity(item.palette, liked);
   return w;
 }
 
-function weightedPick(items: Item[], history: ShuffleHistory, now: number, rng: () => number): Item {
-  const weights = items.map((item) => weight(item, history, now));
+/**
+ * How much a candidate is preferred for going with an already-chosen garment.
+ *
+ * **Never zero, and never a filter.** Colour is a lean, so the range is
+ * 0.6–1.4: a clashing garment is less likely, never impossible. This is what
+ * guarantees colour can never produce an empty result, which is why
+ * `compatible()` below is left entirely alone — season, formality and vibe are
+ * the hard gates, and colour lives only in the weights.
+ *
+ * Returns exactly 1 when either garment has no palette. Not yet read is *no
+ * opinion*, not a penalty — otherwise every garment would be quietly punished
+ * for the few seconds before the backfill reaches it, and outfit-category items
+ * (which pool their members' colours) would be punished permanently.
+ */
+export function harmonyMultiplier(a: Item, b: Item, colour?: ColourPreferences): number {
+  if (!colour) return 1;
+  const score = paletteHarmony(a.palette, b.palette, colour.rules);
+  if (score == null) return 1;
+  return 0.6 + 0.8 * score;
+}
+
+function weightedPick(
+  items: Item[],
+  history: ShuffleHistory,
+  now: number,
+  rng: () => number,
+  liked: string[] = [],
+  /** Per-candidate lean, e.g. how well it goes with a garment already chosen. */
+  bias: (item: Item) => number = () => 1,
+): Item {
+  const weights = items.map((item) => weight(item, history, now, liked) * bias(item));
   const total = weights.reduce((sum, w) => sum + w, 0);
   let r = rng() * total;
   for (let i = 0; i < items.length; i++) {
@@ -176,6 +226,10 @@ function weightedPick(items: Item[], history: ShuffleHistory, now: number, rng: 
 export function pickOutfit(items: Item[], filters: RandomizerFilters, history: ShuffleHistory, options: PickOptions = {}): PickResult {
   const rng = options.rng ?? Math.random;
   const now = options.now ?? Date.now();
+  // The switch is per-shuffle; the rules and liked colours are settings. Off
+  // means undefined all the way down, so every colour code path is skipped
+  // rather than being asked to score neutrally.
+  const colour = filters.matchColours ? options.colour : undefined;
 
   const tops = options.lockedTop ? [options.lockedTop] : items.filter((i) => i.category === 'top' && passesFilters(i, filters));
   const bottoms = options.lockedBottom ? [options.lockedBottom] : items.filter((i) => i.category === 'bottom' && passesFilters(i, filters));
@@ -183,10 +237,12 @@ export function pickOutfit(items: Item[], filters: RandomizerFilters, history: S
   if (tops.length === 0) return { status: 'empty', reason: 'no-tops' };
   if (bottoms.length === 0) return { status: 'empty', reason: 'no-bottoms' };
 
-  const pair = pickPair(tops, bottoms, filters, history, now, rng, options);
+  const pair = pickPair(tops, bottoms, filters, history, now, rng, options, colour);
   if (!pair) return { status: 'empty', reason: 'no-compatible-pair' };
 
-  const accessory = filters.addAccessory ? pickAccessory(items, filters, history, now, rng) : null;
+  const accessory = filters.addAccessory
+    ? pickAccessory(items, filters, history, now, rng, colour, pair)
+    : null;
 
   return { status: 'ok', outfit: { top: pair.top, bottom: pair.bottom, accessory } };
 }
@@ -199,36 +255,71 @@ function pickPair(
   now: number,
   rng: () => number,
   options: PickOptions,
+  colour?: ColourPreferences,
 ): { top: Item; bottom: Item } | null {
+  const liked = colour?.liked ?? [];
   // A locked side is fixed — there's nothing to retry, just find a compatible
   // partner for it directly rather than rejection-sampling against it.
   if (options.lockedTop) {
     const compatibleBottoms = bottoms.filter((b) => compatible(options.lockedTop!, b, filters));
     if (compatibleBottoms.length === 0) return null;
-    return { top: options.lockedTop, bottom: weightedPick(compatibleBottoms, history, now, rng) };
+    return {
+      top: options.lockedTop,
+      bottom: weightedPick(compatibleBottoms, history, now, rng, liked, (b) =>
+        harmonyMultiplier(options.lockedTop!, b, colour),
+      ),
+    };
   }
   if (options.lockedBottom) {
     const compatibleTops = tops.filter((t) => compatible(t, options.lockedBottom!, filters));
     if (compatibleTops.length === 0) return null;
-    return { top: weightedPick(compatibleTops, history, now, rng), bottom: options.lockedBottom };
+    return {
+      top: weightedPick(compatibleTops, history, now, rng, liked, (t) =>
+        harmonyMultiplier(t, options.lockedBottom!, colour),
+      ),
+      bottom: options.lockedBottom,
+    };
   }
 
   // Neither locked: weighted-pick a top, then a compatible bottom for it: re-pick
   // the top on failure, up to MAX_TOP_ATTEMPTS times, before giving up (spec §7.1).
+  //
+  // Colour biases the *second* pick, not the first: the top is chosen before
+  // any bottom is known. Scoring every top against the whole bottom pool first
+  // would be O(n²) per shuffle and would make which top comes up depend on the
+  // shape of the wardrobe rather than on the top. A real limitation, stated
+  // rather than hidden.
   for (let attempt = 0; attempt < MAX_TOP_ATTEMPTS; attempt++) {
-    const top = weightedPick(tops, history, now, rng);
+    const top = weightedPick(tops, history, now, rng, liked);
     const compatibleBottoms = bottoms.filter((b) => compatible(top, b, filters));
     if (compatibleBottoms.length > 0) {
-      return { top, bottom: weightedPick(compatibleBottoms, history, now, rng) };
+      return {
+        top,
+        bottom: weightedPick(compatibleBottoms, history, now, rng, liked, (b) =>
+          harmonyMultiplier(top, b, colour),
+        ),
+      };
     }
   }
   return null;
 }
 
-function pickAccessory(items: Item[], filters: RandomizerFilters, history: ShuffleHistory, now: number, rng: () => number): Item | null {
+function pickAccessory(
+  items: Item[],
+  filters: RandomizerFilters,
+  history: ShuffleHistory,
+  now: number,
+  rng: () => number,
+  colour: ColourPreferences | undefined,
+  pair: { top: Item; bottom: Item },
+): Item | null {
   const others = items.filter((i) => i.category === 'other' && passesFilters(i, filters));
   if (others.length === 0) return null;
-  return weightedPick(others, history, now, rng);
+  // Judged against both halves of the outfit rather than one, so an accessory
+  // is chosen for the look and not for the top it happens to sit nearest.
+  return weightedPick(others, history, now, rng, colour?.liked ?? [], (o) =>
+    Math.min(harmonyMultiplier(pair.top, o, colour), harmonyMultiplier(pair.bottom, o, colour)),
+  );
 }
 
 /** Today's date maps to a season for the filter row's default (spec §7.1). */

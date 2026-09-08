@@ -53,7 +53,9 @@ export default function Wardrobe() {
         getMeta<SortKey>(SORT_KEY_KEY),
         getMeta<boolean>(SORT_REVERSED_KEY),
       ]);
-      if (savedFilters) setFilters(savedFilters);
+      // Merged, not assigned: a stored object predating a new field would
+      // bring it back as undefined. Same trap as the randomizer's filters.
+      if (savedFilters) setFilters({ ...DEFAULT_FILTER_STATE, ...savedFilters });
       if (savedSort) setSortKey(savedSort);
       if (savedReversed != null) setSortReversed(savedReversed);
       setLoadedPersisted(true);

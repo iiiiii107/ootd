@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import type { Item } from '../db/types';
+import { DEFAULT_COLOUR_PREFERENCES } from './colour';
 import {
   DEFAULT_RANDOMIZER_FILTERS,
   compatible,
   currentSeason,
+  harmonyMultiplier,
   pickOutfit,
   weight,
   type RandomizerFilters,
@@ -379,5 +381,161 @@ describe('currentSeason', () => {
     [11, 'winter'], // Dec
   ] as const)('month index %i maps to %s', (month, expected) => {
     expect(currentSeason(new Date(2026, month, 15))).toBe(expected);
+  });
+});
+
+// --- colour ---------------------------------------------------------------
+
+const BLACK = [{ hex: '#141414', share: 1 }];
+const RUST = [{ hex: '#b8714c', share: 1 }];
+const OLIVE = [{ hex: '#5f6b4a', share: 1 }];
+
+describe('harmonyMultiplier', () => {
+  it('is exactly 1 when colour is not being considered', () => {
+    const a = makeItem({ palette: RUST });
+    const b = makeItem({ palette: OLIVE });
+    expect(harmonyMultiplier(a, b, undefined)).toBe(1);
+  });
+
+  it('is exactly 1 when either garment has no palette', () => {
+    // The single most important line in the feature. A garment the backfill
+    // has not reached yet, or an outfit pooling members that have none, must
+    // be treated as *no opinion* — never quietly penalised for it.
+    const known = makeItem({ palette: RUST });
+    const unread = makeItem({ palette: [] });
+    expect(harmonyMultiplier(known, unread, DEFAULT_COLOUR_PREFERENCES)).toBe(1);
+    expect(harmonyMultiplier(unread, known, DEFAULT_COLOUR_PREFERENCES)).toBe(1);
+  });
+
+  it('prefers a matching partner over a clashing one', () => {
+    const rust = makeItem({ palette: RUST });
+    const black = makeItem({ palette: BLACK });
+    const olive = makeItem({ palette: OLIVE });
+    expect(harmonyMultiplier(rust, black, DEFAULT_COLOUR_PREFERENCES)).toBeGreaterThan(
+      harmonyMultiplier(rust, olive, DEFAULT_COLOUR_PREFERENCES),
+    );
+  });
+
+  it('never reaches zero, however badly two garments clash', () => {
+    // A lean, not a filter. If this could return 0 a colour could remove a
+    // garment from the pool entirely and produce an empty shuffle.
+    const rust = makeItem({ palette: RUST });
+    const olive = makeItem({ palette: OLIVE });
+    const score = harmonyMultiplier(rust, olive, DEFAULT_COLOUR_PREFERENCES);
+    expect(score).toBeGreaterThanOrEqual(0.6);
+    expect(score).toBeLessThanOrEqual(1.4);
+  });
+
+  it('treats every pair alike when all the rules are off', () => {
+    const none = {
+      ...DEFAULT_COLOUR_PREFERENCES,
+      rules: { neutralWithAnything: false, analogous: false, complementary: false },
+    };
+    const rust = makeItem({ palette: RUST });
+    const black = makeItem({ palette: BLACK });
+    const olive = makeItem({ palette: OLIVE });
+    expect(harmonyMultiplier(rust, black, none)).toBe(harmonyMultiplier(rust, olive, none));
+  });
+});
+
+describe('weight with liked colours', () => {
+  const history: ShuffleHistory = [];
+  const now = Date.parse('2026-08-20');
+
+  it('is unchanged when the user has named no colours', () => {
+    // Guards the hot path: existing behaviour must be bit-identical, or a
+    // subtle randomizer regression gets blamed on colour.
+    const item = makeItem({ palette: RUST, lastWornAt: now });
+    expect(weight(item, history, now, [])).toBe(weight(item, history, now));
+  });
+
+  it('leans toward a colour the user likes', () => {
+    const item = makeItem({ palette: RUST, lastWornAt: now });
+    expect(weight(item, history, now, ['#b8714c'])).toBeGreaterThan(weight(item, history, now));
+  });
+
+  it('never outweighs a favourite', () => {
+    // The invariant: colour reorders within a band, it does not outrank the
+    // signals that are about the wardrobe itself.
+    const liked = makeItem({ palette: RUST, lastWornAt: now });
+    const favourite = makeItem({ palette: OLIVE, lastWornAt: now, favorite: true });
+    expect(weight(liked, history, now, ['#b8714c'])).toBeLessThan(
+      weight(favourite, history, now, ['#b8714c']),
+    );
+  });
+});
+
+describe('pickOutfit with colour matching', () => {
+  const base = { seasons: ['summer' as const], formality: 'casual' as const, vibe: null };
+
+  it('changes which bottom comes up, on the same roll of the dice', () => {
+    // The clashing bottom is listed first, and the seed is chosen so that
+    // without colour it wins the weighted draw. Turning matching on has to
+    // move the answer to the black one — same items, same rng, different
+    // outcome, which is the only way to show the weighting did the work
+    // rather than the ordering.
+    const top = makeItem({ ...base, category: 'top', palette: RUST });
+    const clashing = makeItem({ ...base, category: 'bottom', palette: OLIVE });
+    const matching = makeItem({ ...base, category: 'bottom', palette: BLACK });
+    const wardrobe = [top, clashing, matching];
+
+    const without = pickOutfit(wardrobe, filters({ matchColours: false }), [], {
+      rng: fixedRng(0.4),
+      colour: DEFAULT_COLOUR_PREFERENCES,
+    });
+    const withColour = pickOutfit(wardrobe, filters({ matchColours: true }), [], {
+      rng: fixedRng(0.4),
+      colour: DEFAULT_COLOUR_PREFERENCES,
+    });
+
+    expect(without.status).toBe('ok');
+    expect(withColour.status).toBe('ok');
+    if (without.status === 'ok' && withColour.status === 'ok') {
+      expect(without.outfit.bottom.id).toBe(clashing.id);
+      expect(withColour.outfit.bottom.id).toBe(matching.id);
+    }
+  });
+
+  it('still returns an outfit when nothing in the wardrobe matches', () => {
+    // The user's guarantee, written down: colour is a preference, so a
+    // wardrobe of clashing clothes still gets dressed.
+    const top = makeItem({ ...base, category: 'top', palette: RUST });
+    const bottom = makeItem({ ...base, category: 'bottom', palette: OLIVE });
+
+    const result = pickOutfit([top, bottom], filters({ matchColours: true }), [], {
+      rng: fixedRng(0),
+      colour: DEFAULT_COLOUR_PREFERENCES,
+    });
+
+    expect(result.status).toBe('ok');
+  });
+
+  it('ignores colour entirely when the switch is off', () => {
+    const top = makeItem({ ...base, category: 'top', palette: RUST });
+    const matching = makeItem({ ...base, category: 'bottom', palette: BLACK });
+    const clashing = makeItem({ ...base, category: 'bottom', palette: OLIVE });
+
+    const off = pickOutfit([top, matching, clashing], filters({ matchColours: false }), [], {
+      rng: fixedRng(0.99),
+      colour: DEFAULT_COLOUR_PREFERENCES,
+    });
+    const noPreferences = pickOutfit([top, matching, clashing], filters({ matchColours: false }), [], {
+      rng: fixedRng(0.99),
+    });
+
+    expect(off.status).toBe('ok');
+    if (off.status === 'ok' && noPreferences.status === 'ok') {
+      expect(off.outfit.bottom.id).toBe(noPreferences.outfit.bottom.id);
+    }
+  });
+
+  it('dresses a wardrobe whose colours have not been read yet', () => {
+    const top = makeItem({ ...base, category: 'top', palette: [] });
+    const bottom = makeItem({ ...base, category: 'bottom', palette: [] });
+    const result = pickOutfit([top, bottom], filters({ matchColours: true }), [], {
+      rng: fixedRng(0),
+      colour: DEFAULT_COLOUR_PREFERENCES,
+    });
+    expect(result.status).toBe('ok');
   });
 });

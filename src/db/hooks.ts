@@ -2,6 +2,9 @@ import { useLiveQuery } from 'dexie-react-hooks';
 
 import { DEFAULT_APPEARANCE, type Appearance } from '../design/theme';
 import { DEFAULT_MODEL, type ModelChoice } from '../images/cutout';
+import { DEFAULT_COLOUR_PREFERENCES, type ColourPreferences } from '../logic/colour';
+import { COLOUR_PREFERENCES_KEY } from './colour';
+import { PALETTE_VERSION, USER_SET_PALETTE } from './paletteVersion';
 import { APPEARANCE_KEY } from './appearance';
 import { db } from './schema';
 import type { CustomTag, Item, Wear } from './types';
@@ -191,4 +194,38 @@ export function useWearMembers(memberIds: string[]): Item[] | undefined {
     },
     [key],
   );
+}
+
+/**
+ * The colour rules and liked colours, live. Defaults are merged inside the
+ * query so a caller never has to think about a half-written preference.
+ */
+export function useColourPreferences(): ColourPreferences {
+  const value = useLiveQuery(async () => {
+    const entry = await db.meta.get(COLOUR_PREFERENCES_KEY);
+    const stored = entry?.value as Partial<ColourPreferences> | undefined;
+    return {
+      ...DEFAULT_COLOUR_PREFERENCES,
+      ...stored,
+      rules: { ...DEFAULT_COLOUR_PREFERENCES.rules, ...stored?.rules },
+    };
+  }, []);
+  return value ?? DEFAULT_COLOUR_PREFERENCES;
+}
+
+/** How many garments are still waiting for their colours to be read. */
+export function usePendingPaletteCount(): number {
+  const value = useLiveQuery(
+    () =>
+      db.items
+        .filter(
+          (item) =>
+            item.deletedAt == null &&
+            item.paletteVersion !== PALETTE_VERSION &&
+            item.paletteVersion !== USER_SET_PALETTE,
+        )
+        .count(),
+    [],
+  );
+  return value ?? 0;
 }

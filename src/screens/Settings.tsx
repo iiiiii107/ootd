@@ -3,10 +3,13 @@ import { useEffect, useRef, useState } from 'react';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { TagGroupManager } from '../components/TagGroupManager';
 import { updateAppearance } from '../db/appearance';
+import { updateColourPreferences } from '../db/colour';
 import { exportBackup, importBackup } from '../db/backup';
 import {
   useAppearance,
   useArchivedItems,
+  useColourPreferences,
+  usePendingPaletteCount,
   useAutoDetectEnabled,
   useCutoutEnabled,
   useSegmentationModel,
@@ -15,6 +18,7 @@ import {
 } from '../db/hooks';
 import { archiveItem, deleteEverything, emptyTrash, hardDeleteItem, restoreItem } from '../db/items';
 import { setMeta } from '../db/meta';
+import type { ColourPreferences } from '../logic/colour';
 import {
   currentColour,
   DENSITIES,
@@ -41,6 +45,7 @@ export default function Settings() {
     <div className="flex flex-col gap-8 px-4 pb-10">
       <ScreenTitle>settings</ScreenTitle>
 
+      <ColourSection />
       <AppearanceSection />
       <StorageSection />
       <CutoutSection />
@@ -145,6 +150,118 @@ function CutoutSection() {
     </Section>
   );
 }
+
+/**
+ * How colour matching judges a pair, and which colours this particular person
+ * likes wearing.
+ *
+ * Two different kinds of preference deliberately sitting together: the rules
+ * are about colour theory, the palette is about taste. Neither is per-shuffle
+ * — the switch that turns matching on and off lives on the randomizer, beside
+ * "favourites only", because that is a decision you make for one outfit.
+ */
+function ColourSection() {
+  const colour = useColourPreferences();
+  const pending = usePendingPaletteCount();
+  const set = (patch: Partial<ColourPreferences>) => void updateColourPreferences(patch);
+  const setRule = (key: keyof ColourPreferences['rules'], value: boolean) =>
+    set({ rules: { ...colour.rules, [key]: value } });
+
+  const liked = colour.liked;
+  const changeLiked = (next: string[]) => set({ liked: next });
+
+  return (
+    <Section title="Colour">
+      <p className="text-[12px] leading-relaxed text-muted">
+        What counts as two colours going together. This is a lean, not a rule —
+        the randomizer prefers pairs that match, and never refuses to dress you.
+      </p>
+
+      <Toggle
+        on={colour.rules.neutralWithAnything}
+        onLabel="Neutrals go with anything"
+        offLabel="Neutrals treated like any colour"
+        onClick={() => setRule('neutralWithAnything', !colour.rules.neutralWithAnything)}
+      />
+      <p className="text-[12px] leading-relaxed text-muted">
+        Black, white, grey, cream and most beiges. Most wardrobes are mostly
+        these, so turning it off leaves very little matching anything.
+      </p>
+
+      <Toggle
+        on={colour.rules.analogous}
+        onLabel="Neighbouring colours match"
+        offLabel="Neighbouring colours ignored"
+        onClick={() => setRule('analogous', !colour.rules.analogous)}
+      />
+      <p className="text-[12px] leading-relaxed text-muted">
+        Rust with mustard, sage with olive — quiet, tonal pairings.
+      </p>
+
+      <Toggle
+        on={colour.rules.complementary}
+        onLabel="Opposite colours match"
+        offLabel="Opposite colours ignored"
+        onClick={() => setRule('complementary', !colour.rules.complementary)}
+      />
+      <p className="text-[12px] leading-relaxed text-muted">
+        Mustard with indigo, rust with deep blue — a deliberate contrast.
+      </p>
+
+      <div className="flex flex-col gap-1.5 pt-1">
+        <p className="text-[12px] font-medium text-muted">Colours you like wearing</p>
+        <div className="flex flex-wrap items-center gap-2">
+          {liked.map((hex, index) => (
+            <span key={index} className="relative inline-flex">
+              <input
+                type="color"
+                value={hex}
+                aria-label={`Colour you like, ${index + 1}`}
+                onChange={(e) =>
+                  changeLiked(liked.map((c, i) => (i === index ? e.target.value : c)))
+                }
+                className="h-7 w-7 cursor-pointer rounded-full border border-rule bg-transparent p-0"
+              />
+              <button
+                type="button"
+                onClick={() => changeLiked(liked.filter((_, i) => i !== index))}
+                aria-label={`Remove colour ${index + 1}`}
+                className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full border border-rule bg-paper text-[10px] leading-none text-muted"
+              >
+                ×
+              </button>
+            </span>
+          ))}
+          {liked.length < MAX_LIKED && (
+            <button
+              type="button"
+              onClick={() => changeLiked([...liked, '#b8714c'])}
+              aria-label="Add a colour you like"
+              className="flex h-7 w-7 items-center justify-center rounded-full border border-rule text-[14px] leading-none text-muted"
+            >
+              +
+            </button>
+          )}
+        </div>
+        <p className="text-[12px] leading-relaxed text-muted">
+          Garments in these colours come up a little more often. Leave it empty
+          and the randomizer has no opinion about which colours you prefer.
+        </p>
+      </div>
+
+      {pending > 0 && (
+        <p className="rounded-chip border border-rule p-3 text-[12px] leading-relaxed text-muted">
+          Reading the colours of {pending} {pending === 1 ? 'garment' : 'garments'}. Matching works
+          on whatever has been read so far — anything still waiting is simply not
+          judged on colour yet.
+        </p>
+      )}
+    </Section>
+  );
+}
+
+/** Enough to describe a taste; more would be a wardrobe, not a preference. */
+const MAX_LIKED = 8;
 
 /**
  * Appearance (the family's own settings pattern, shared with cookbook and the
