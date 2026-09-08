@@ -66,3 +66,47 @@ describe('deriveWearStats', () => {
     expect(deriveWearStats('top', unordered).lastWornAt).toBe(900);
   });
 });
+
+/**
+ * The back-dating rules. These are pure assertions about how a logged day's
+ * timestamp relates to the day itself — the part that, done naively, quietly
+ * corrupts what the app recommends.
+ */
+describe('a back-dated entry', () => {
+  /** Mirrors `noonOn` in wears.ts, which is private. */
+  const noonOn = (key: string) => {
+    const [y, m, d] = key.split('-').map(Number);
+    return new Date(y, m - 1, d, 12).getTime();
+  };
+
+  it('is stamped on its own day, not the day it was entered', () => {
+    // `deriveWearStats` takes the largest `wornAt` as `lastWornAt`. Stamping a
+    // month-old outfit with the current time tells the wardrobe's sort and the
+    // randomizer's neglect weighting that it was worn today.
+    const stamp = noonOn('2026-08-01');
+    expect(localDateKey(new Date(stamp))).toBe('2026-08-01');
+  });
+
+  it('sits at midday, so a clock change cannot move it to another day', () => {
+    // Midnight would be one hour from the boundary twice a year.
+    expect(new Date(noonOn('2026-03-29')).getHours()).toBe(12);
+    expect(new Date(noonOn('2026-10-25')).getHours()).toBe(12);
+  });
+
+  it('leaves an older wear as the most recent when it is older', () => {
+    const log = [
+      wear('2026-08-01', noonOn('2026-08-01'), ['top']),
+      wear('2026-09-05', noonOn('2026-09-05'), ['top']),
+    ];
+    expect(deriveWearStats('top', log).lastWornAt).toBe(noonOn('2026-09-05'));
+  });
+
+  it('does not become the most recent just because it was entered last', () => {
+    // Logging August after September must not make August the latest wear.
+    const enteredOutOfOrder = [
+      wear('2026-09-05', noonOn('2026-09-05'), ['top']),
+      wear('2026-08-01', noonOn('2026-08-01'), ['top']),
+    ];
+    expect(deriveWearStats('top', enteredOutOfOrder).lastWornAt).toBe(noonOn('2026-09-05'));
+  });
+});

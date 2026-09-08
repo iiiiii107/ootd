@@ -7,7 +7,7 @@ import { OutfitTile } from '../components/OutfitTile';
 import { ScreenTitle } from '../components/ScreenTitle';
 import { SearchBar } from '../components/SearchBar';
 import { SortRow } from '../components/SortRow';
-import { WearFeed } from '../components/WearFeed';
+import { WearCalendar } from '../components/WearCalendar';
 import { SearchIcon } from '../components/icons';
 import { useOutfitItems } from '../db/hooks';
 import { getMeta, setMeta } from '../db/meta';
@@ -147,7 +147,7 @@ export default function Outfits() {
         </div>
       </div>
 
-      {tab === 'worn' && <WearFeed />}
+      {tab === 'worn' && <WearCalendar />}
 
       {tab === 'saved' && filtersOpen && (
         <>

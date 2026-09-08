@@ -150,7 +150,14 @@ export interface CustomTag {
 export interface Wear {
   /** Local calendar date, `YYYY-MM-DD`. Also the primary key. */
   id: string;
-  /** Epoch ms of the moment it was logged — ordering within the feed. */
+  /**
+   * Midday on the day itself — not the moment it was logged.
+   *
+   * It is the source of `Item.lastWornAt`, so a back-dated entry stamped with
+   * the current time would tell the wardrobe and the randomizer that a
+   * month-old outfit was worn today. Midday so a daylight-saving shift cannot
+   * move it across a day boundary.
+   */
   wornAt: number;
   /** The garments worn. References, never copies. */
   memberIds: string[];

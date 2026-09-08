@@ -229,3 +229,25 @@ export function usePendingPaletteCount(): number {
   );
   return value ?? 0;
 }
+
+/**
+ * Every day logged in one month.
+ *
+ * A primary-key range scan rather than a filter over the whole log: the date
+ * *is* the key, and `YYYY-MM-DD` sorts lexicographically exactly as it sorts
+ * chronologically, so the bounds are simply the first and last of the month.
+ */
+export function useWearsInMonth(year: number, monthIndex: number): Wear[] | undefined {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const first = `${year}-${pad(monthIndex + 1)}-01`;
+  const last = `${year}-${pad(monthIndex + 1)}-31`;
+  return useLiveQuery(
+    () => db.wears.where('id').between(first, last, true, true).toArray(),
+    [first, last],
+  );
+}
+
+/** One day's entry, live. Undefined for a day with nothing logged. */
+export function useWear(dateKey: string | null): Wear | undefined {
+  return useLiveQuery(() => (dateKey ? db.wears.get(dateKey) : undefined), [dateKey]);
+}

@@ -33,12 +33,22 @@ export function localDateKey(when: Date = new Date()): string {
  * revisited a few times would leave garments claiming wears that never
  * happened.
  */
-export async function logWearToday(
+export async function logWear(
   memberIds: string[],
   outfitId: string | null = null,
+  /** A date, or a `YYYY-MM-DD` key. Defaults to today. */
+  when: Date | string = new Date(),
 ): Promise<Wear> {
-  const id = localDateKey();
-  const entry: Wear = { id, wornAt: Date.now(), memberIds, outfitId, note: '' };
+  const id = typeof when === 'string' ? when : localDateKey(when);
+
+  // Refused here rather than only in the UI, because the date is the primary
+  // key: a future row would sit at the top of the log and hold `lastWornAt`
+  // ahead of every real wear indefinitely. String comparison is a correct date
+  // comparison for this format precisely because it is fixed-width and
+  // zero-padded — it looks like a bug otherwise, so: it isn't.
+  if (id > localDateKey()) throw new Error('That day has not happened yet.');
+
+  const entry: Wear = { id, wornAt: noonOn(id), memberIds, outfitId, note: '' };
 
   const affected = await db.transaction('rw', db.items, db.wears, async () => {
     const previous = await db.wears.get(id);
@@ -48,6 +58,32 @@ export async function logWearToday(
 
   await recomputeWearStats(affected);
   return entry;
+}
+
+/** Unchanged for every existing caller — the randomizer and the detail sheet. */
+export function logWearToday(memberIds: string[], outfitId: string | null = null): Promise<Wear> {
+  return logWear(memberIds, outfitId);
+}
+
+/**
+ * Midday on the given day, and the "midday" is the point.
+ *
+ * `deriveWearStats` takes `Math.max(wornAt)` as `lastWornAt`, so stamping a
+ * back-dated entry with `Date.now()` would tell the wardrobe's sort and the
+ * randomizer's neglect weighting that a month-old outfit was worn *today* —
+ * silently changing what the app recommends. Noon rather than midnight so a
+ * daylight-saving shift cannot move it across a day boundary.
+ *
+ * Parsed field by field, never `new Date(key)`, which reads a bare
+ * `YYYY-MM-DD` as UTC midnight and lands on the wrong day west of Greenwich.
+ *
+ * One honest wrinkle: today's entry logged at 09:00 carries a timestamp three
+ * hours ahead. The only consumer asks whether it is more than thirty days ago,
+ * so it costs nothing.
+ */
+function noonOn(key: string): number {
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(year, month - 1, day, 12).getTime();
 }
 
 /** Remove one day from the log, and take its contribution back out of the stats. */
@@ -115,7 +151,12 @@ export async function listWears(): Promise<Wear[]> {
   return db.wears.orderBy('wornAt').reverse().toArray();
 }
 
+/** One day's entry, if that day has one. */
+export async function getWear(id: string): Promise<Wear | undefined> {
+  return db.wears.get(id);
+}
+
 /** Today's entry, if today has one. */
 export async function getTodaysWear(): Promise<Wear | undefined> {
-  return db.wears.get(localDateKey());
+  return getWear(localDateKey());
 }

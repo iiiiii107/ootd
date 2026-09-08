@@ -306,6 +306,12 @@ Each is judged against *both* halves of the outfit: a jacket that suits the top 
 
 Two things live on the Outfits screen, related but not the same: **recently worn** (the default) and **saved**.
 
+**A month grid**, replacing the day-by-day list. Any past day can be tapped and filled in; a logged day shows its first garment as the cell, because this is a wardrobe app and its calendar should show clothes rather than dots. Today is ringed, future days are disabled, and cells outside the month render as nothing rather than as the neighbour's dates — greyed neighbours only invite tapping across a boundary by mistake.
+
+**A back-dated entry is stamped at midday on its own day, never `Date.now()`.** This is the difference between a feature and a quiet corruption: `deriveWearStats` takes the largest `wornAt` as `lastWornAt`, so logging a month-old outfit with the current time would tell the wardrobe's sort and the randomizer's neglect weighting that those garments were worn *today*, silently changing what the app recommends. Midday rather than midnight so a daylight-saving shift cannot move it across a day boundary.
+
+**Future dates are refused in the database layer**, not only in the UI. The date is the primary key, so a future row would sit at the top of the log and hold `lastWornAt` ahead of every real wear indefinitely.
+
 **The log.** One entry per day, most recent first. The local date is the entry's primary key, which makes "logging again replaces today" true by construction rather than by a check that could race — and it must be the *local* date, or an outfit logged in the evening files itself under tomorrow.
 
 An entry records the **garments**, not the outfit, so "when did I last wear this skirt" stays answerable whether the skirt was worn alone or as part of a saved look. The outfit it came from is kept alongside when there was one.
