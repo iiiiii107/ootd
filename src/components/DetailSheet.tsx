@@ -154,6 +154,36 @@ export function DetailSheet({ itemId, onClose }: { itemId: string; onClose: () =
           from wardrobe pieces has no image to edit, and erasing background
           belongs on the garments it is composed from anyway.
         */}
+        {/*
+          The colours the app thinks this garment is made of.
+          
+          Worth showing rather than hiding in the database: it is what the
+          randomizer's colour matching reasons about, and if it disagrees with
+          the garment in front of you that is something you can see at a glance
+          and nobody else can. A garment still waiting on the colour read says
+          so, rather than showing nothing and looking broken.
+        */}
+        {item.memberIds.length === 0 && (
+          <div className="flex items-center gap-2">
+            <p className="text-[12px] font-medium text-muted">Colours</p>
+            {item.palette.length > 0 ? (
+              <div className="flex items-center gap-1.5">
+                {item.palette.map((swatch) => (
+                  <span
+                    key={swatch.hex}
+                    title={`${swatch.hex} · ${Math.round(swatch.share * 100)}%`}
+                    className="h-5 w-5 rounded-full border border-rule"
+                    style={{ backgroundColor: swatch.hex }}
+                  />
+                ))}
+                <span className="text-[11px] text-muted">{item.palette[0].hex}</span>
+              </div>
+            ) : (
+              <span className="text-[11px] text-muted">reading…</span>
+            )}
+          </div>
+        )}
+
         {item.image && item.memberIds.length === 0 && (
           <div className="flex flex-wrap gap-1.5">
             <button
