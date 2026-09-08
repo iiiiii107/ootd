@@ -10,6 +10,7 @@ import { getMeta, setMeta } from '../db/meta';
 import type { Formality, Item, Location, Season, Vibe } from '../db/types';
 import { toggleInArray } from '../lib/toggleInArray';
 import { ItemImage } from '../components/ItemImage';
+import { OutfitLayout } from '../components/OutfitLayout';
 import {
   DEFAULT_RANDOMIZER_FILTERS,
   currentSeason,
@@ -235,53 +236,33 @@ export default function Randomizer() {
 
       {result?.status === 'ok' && (
         <div key={shuffleCount} className="shuffle-result flex flex-col gap-3">
-          {/*
-            Laid out like a body rather than a list. Top and bottom hold the
-            centre because they are the outfit; the jacket hangs to the left of
-            the top, shoes sit under the bottom, and an accessory sits at the
-            waist on the right, spanning both garment rows so it lands on the
-            seam where they meet.
-
-            Empty slots collapse rather than leaving a gap — an outfit with no
-            jacket should look like an outfit, not like one with a hole in it.
-          */}
-          <div
-            className="mx-auto grid w-full max-w-[340px] items-center gap-2"
-            style={{ gridTemplateColumns: '1fr 1.6fr 1fr' }}
-          >
-            <div className="col-start-1 row-start-1">
-              {result.outfit.jacket && <SideCard item={result.outfit.jacket} label="jacket" />}
-            </div>
-            <div className="col-start-2 row-start-1">
+          <OutfitLayout
+            jacket={
+              result.outfit.jacket && <SideCard item={result.outfit.jacket} label="jacket" />
+            }
+            top={
               <ResultCard
                 item={result.outfit.top}
                 label="top"
                 locked={!!lockedTop}
                 onToggleLock={toggleLockTop}
               />
-            </div>
-            <div className="col-start-3 row-span-2 row-start-1 self-center">
-              {result.outfit.accessory && (
+            }
+            accessory={
+              result.outfit.accessory && (
                 <SideCard item={result.outfit.accessory} label="accessory" />
-              )}
-            </div>
-
-            <div className="col-start-2 row-start-2">
+              )
+            }
+            bottom={
               <ResultCard
                 item={result.outfit.bottom}
                 label="bottom"
                 locked={!!lockedBottom}
                 onToggleLock={toggleLockBottom}
               />
-            </div>
-
-            {/* Narrowed rather than left to fill the centre column: shoes are a
-                supporting piece, and at the pair's full width they read as
-                important as the outfit itself. */}
-            <div className="col-start-2 row-start-3 mx-auto w-3/5">
-              {result.outfit.shoes && <SideCard item={result.outfit.shoes} label="shoes" />}
-            </div>
-          </div>
+            }
+            shoes={result.outfit.shoes && <SideCard item={result.outfit.shoes} label="shoes" />}
+          />
 
           <div className="flex flex-wrap gap-2 pt-1">
             <button
