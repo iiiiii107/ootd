@@ -1,19 +1,34 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 
-import { useCustomTags } from '../db/hooks';
+import { useCustomTags, useEnabledGroups } from '../db/hooks';
+import { isAlwaysOn, setGroupEnabled } from '../db/groupSettings';
+import { BUILTIN_GROUPS, type TagGroup } from '../tags/groups';
 import { addTagValue, createTagValue, deleteTagGroup, deleteTagValue, mergeTagValues, renameTagValue, tagUsageCount } from '../db/tags';
 import type { CustomTag } from '../db/types';
 
 /**
- * Create group, add/rename/delete values, merge two values, usage count per
- * tag (spec §4.2) — "the answer to 'I'm worried I forgot a tag.'" Any group
- * created here shows up in both the filter bar and the item editor with no
- * code changes, because both already render generically over `useGroups()`
- * (spec §15); this is the one piece that was still missing to prove it.
+ * Every way this wardrobe can be sorted, in one list.
+ *
+ * Built-in and home-made groups sit together and are presented as the same
+ * kind of thing, because to the person using the app they are: a name, some
+ * values, and clothes tagged with them. Both show up in the filter bar, the
+ * item editor, the randomizer's filter rows and the analytics breakdowns,
+ * and none of those name a group directly (spec §15).
+ *
+ * The difference that remains is about values, not status. A built-in's
+ * values are fixed because the randomizer's pairing rules are keyed to them
+ * — `winter`, `plain`, `loose` mean something to `pickOutfit`, and a renamed
+ * `winter` would quietly stop matching. A custom group's values are free
+ * text precisely because nothing depends on them.
+ *
+ * Removing a built-in hides it rather than erasing it: the tags stay on the
+ * clothes, so bringing it back is one tap and costs nothing. Deleting a
+ * custom group really does delete its values, which is why that one asks.
  */
 export function TagGroupManager() {
   const tags = useCustomTags() ?? [];
+  const enabled = useEnabledGroups();
   const [newGroupOpen, setNewGroupOpen] = useState(false);
 
   const groups = new Map<string, CustomTag[]>();
@@ -23,8 +38,15 @@ export function TagGroupManager() {
     groups.set(tag.groupName, rows);
   }
 
+  const inUse = BUILTIN_GROUPS.filter((g) => isAlwaysOn(g.id) || enabled[g.id] !== false);
+  const removed = BUILTIN_GROUPS.filter((g) => !isAlwaysOn(g.id) && enabled[g.id] === false);
+
   return (
     <div className="flex flex-col gap-4">
+      {inUse.map((group) => (
+        <BuiltinGroupCard key={group.id} group={group} />
+      ))}
+
       {[...groups.entries()].map(([groupName, values]) => (
         <TagGroupCard key={groupName} groupName={groupName} values={values} />
       ))}
@@ -40,6 +62,80 @@ export function TagGroupManager() {
           + new tag group
         </button>
       )}
+
+      {removed.length > 0 && (
+        <div className="flex flex-col gap-2 border-t border-rule pt-4">
+          <p className="text-[12px] text-muted">
+            Removed. Your clothes kept these tags, so bringing one back restores everything it
+            had.
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {removed.map((group) => (
+              <button
+                key={group.id}
+                type="button"
+                onClick={() => void setGroupEnabled(group.id, true)}
+                className="rounded-chip min-h-8 border border-rule px-2.5 text-[12px] text-muted"
+              >
+                + {group.label.toLowerCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * A built-in group. Its values are shown but not editable — see the note on
+ * `TagGroupManager` for why that is about pairing rather than about built-ins
+ * being privileged.
+ */
+function BuiltinGroupCard({ group }: { group: TagGroup }) {
+  const alwaysOn = isAlwaysOn(group.id);
+
+  async function handleRemove() {
+    const message =
+      `Remove "${group.label}"? It disappears from the filters, the randomizer and ` +
+      `tagging. Your clothes keep the tags, and you can bring it back any time.`;
+    if (!window.confirm(message)) return;
+    await setGroupEnabled(group.id, false);
+  }
+
+  return (
+    <div className="rounded-chip border border-rule p-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[13px] font-medium" style={{ color: `var(${group.hue})` }}>
+          {group.label}
+        </p>
+        {alwaysOn ? (
+          <span className="px-2 text-[11px] text-muted">always on</span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => void handleRemove()}
+            className="min-h-8 px-2 text-[11px] text-accent"
+          >
+            remove
+          </button>
+        )}
+      </div>
+      <p className="mt-0.5 text-[11px] text-muted">
+        {alwaysOn
+          ? 'every garment needs one'
+          : 'built in — the randomizer matches on these, so the values are fixed'}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {group.options.map((option) => (
+          <span
+            key={option.value}
+            className="rounded-chip border border-rule px-2.5 py-1 text-[12px] text-muted"
+          >
+            {option.label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

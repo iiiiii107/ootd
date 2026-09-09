@@ -4,7 +4,7 @@ import { DEFAULT_APPEARANCE, type Appearance } from '../design/theme';
 import { DEFAULT_MODEL, type ModelChoice } from '../images/cutout';
 import { DEFAULT_COLOUR_PREFERENCES, type ColourPreferences } from '../logic/colour';
 import { COLOUR_PREFERENCES_KEY } from './colour';
-import { ENABLED_GROUPS_KEY } from './groupSettings';
+import { DEFAULT_ENABLED_GROUPS, getEnabledGroups } from './groupSettings';
 import { PALETTE_VERSION, USER_SET_PALETTE } from './paletteVersion';
 import { APPEARANCE_KEY } from './appearance';
 import { db } from './schema';
@@ -253,11 +253,17 @@ export function useWear(dateKey: string | null): Wear | undefined {
   return useLiveQuery(() => (dateKey ? db.wears.get(dateKey) : undefined), [dateKey]);
 }
 
-/** Which built-in tag groups are switched on. Category is always among them. */
+/**
+ * Which tag groups are switched on, live.
+ *
+ * Defers to `getEnabledGroups` for the merge rather than repeating the
+ * defaults here. It used to repeat them, and they drifted the moment pattern
+ * and fit were added: this hook had never heard of either, read them as
+ * `undefined`, and so showed both everywhere despite their being off — in the
+ * filter bar, the item editor, the randomizer and the analytics at once.
+ * One list, in one place, is the fix.
+ */
 export function useEnabledGroups(): Record<string, boolean> {
-  const value = useLiveQuery(async () => {
-    const entry = await db.meta.get(ENABLED_GROUPS_KEY);
-    return entry?.value as Record<string, boolean> | undefined;
-  }, []);
-  return { season: true, formality: true, location: true, vibe: false, ...value };
+  const value = useLiveQuery(() => getEnabledGroups(), []);
+  return value ?? DEFAULT_ENABLED_GROUPS;
 }

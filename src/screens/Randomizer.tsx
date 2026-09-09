@@ -7,7 +7,7 @@ import { useColourPreferences, useEnabledGroups, useWardrobeItems } from '../db/
 import { createOutfitFromMembers, favoriteMany } from '../db/items';
 import { logWearToday } from '../db/wears';
 import { getMeta, setMeta } from '../db/meta';
-import type { Formality, Item, Location, Season, Vibe } from '../db/types';
+import type { Item } from '../db/types';
 import { toggleInArray } from '../lib/toggleInArray';
 import { ItemImage } from '../components/ItemImage';
 import { OutfitLayout } from '../components/OutfitLayout';
@@ -20,7 +20,8 @@ import {
   type RandomizerFilters,
   type ShuffleHistory,
 } from '../logic/pickOutfit';
-import { FORMALITY_GROUP, LOCATION_GROUP, SEASON_GROUP, VIBE_GROUP } from '../tags/groups';
+import { CATEGORY_GROUP, type TagGroup } from '../tags/groups';
+import { useGroups } from '../tags/useGroups';
 
 const FILTERS_KEY = 'randomizerFilters';
 const HISTORY_SHUFFLES = 8;
@@ -44,6 +45,42 @@ const SWITCHES: {
 ];
 
 /**
+ * Where one filter row reads and writes its selection.
+ *
+ * The four built-in rows have typed fields of their own on the filter state;
+ * everything else — every group the user made — shares the generic `groups`
+ * record. Returning a whole next-filters value rather than a setter keeps
+ * this a pure function of what it is given, so the screen stays a renderer.
+ */
+function selectionFor(
+  group: TagGroup,
+  filters: RandomizerFilters,
+): { selected: string[]; toggle: (value: string) => RandomizerFilters } {
+  const builtin: Partial<Record<string, keyof RandomizerFilters>> = {
+    season: 'seasons',
+    formality: 'formality',
+    location: 'location',
+    vibe: 'vibe',
+  };
+  const field = builtin[group.id];
+  if (field) {
+    const selected = filters[field] as string[];
+    return {
+      selected,
+      toggle: (value) => ({ ...filters, [field]: toggleInArray(selected, value) }),
+    };
+  }
+  const selected = filters.groups[group.id] ?? [];
+  return {
+    selected,
+    toggle: (value) => ({
+      ...filters,
+      groups: { ...filters.groups, [group.id]: toggleInArray(selected, value) },
+    }),
+  };
+}
+
+/**
  * The Clueless machine (spec §7.1). All the real logic lives in
  * src/logic/pickOutfit.ts, pure and unit-tested; this screen is just state
  * and rendering around it.
@@ -52,6 +89,9 @@ export default function Randomizer() {
   const items = useWardrobeItems();
   const colour = useColourPreferences();
   const enabledGroups = useEnabledGroups();
+  // Built-ins the user still has, plus their own groups — already filtered by
+  // what is switched off, so this screen needs no gating of its own.
+  const groups = useGroups();
   // A dimension switched off in Settings imposes no rule here either — see
   // `ActiveDimensions`. Hiding a group must not leave it quietly shaping
   // which outfits come up.
@@ -171,45 +211,30 @@ export default function Randomizer() {
 
       <div className="flex flex-col gap-3">
         {/*
-          Named groups rather than a loop over `useGroups()`, because each row
-          writes to a differently-typed field on the filter state — but each is
-          gated on the same switch, or a group hidden in Settings would still
-          appear here, which is the one place it would be most confusing.
+          One loop over `useGroups()`, so the rows here are whatever the user
+          actually has — a group they invented this morning narrows a shuffle
+          exactly as season does, and a group they removed disappears from
+          here along with everywhere else. Category is skipped: the randomizer
+          picks the categories itself.
+
+          Built-in rows still write to their own typed fields, because those
+          four take part in pairing and the types are what keep that logic
+          honest; `selectionFor` is the whole of that difference.
         */}
-        {enabledGroups.season !== false && (
-          <TagChipRow
-            group={SEASON_GROUP}
-            selected={filters.seasons}
-            onToggle={(v) =>
-              setFilters({ ...filters, seasons: toggleInArray(filters.seasons, v as Season) })
-            }
-          />
-        )}
-        {enabledGroups.formality !== false && (
-          <TagChipRow
-            group={FORMALITY_GROUP}
-            selected={filters.formality}
-            onToggle={(v) =>
-              setFilters({ ...filters, formality: toggleInArray(filters.formality, v as Formality) })
-            }
-          />
-        )}
-        {enabledGroups.location !== false && (
-          <TagChipRow
-            group={LOCATION_GROUP}
-            selected={filters.location}
-            onToggle={(v) =>
-              setFilters({ ...filters, location: toggleInArray(filters.location, v as Location) })
-            }
-          />
-        )}
-        {enabledGroups.vibe !== false && (
-          <TagChipRow
-            group={VIBE_GROUP}
-            selected={filters.vibe}
-            onToggle={(v) => setFilters({ ...filters, vibe: toggleInArray(filters.vibe, v as Vibe) })}
-          />
-        )}
+        {groups
+          .filter((group) => group.id !== CATEGORY_GROUP.id)
+          .map((group) => {
+            const { selected, toggle } = selectionFor(group, filters);
+            return (
+              <TagChipRow
+                key={group.id}
+                group={group}
+                selected={selected}
+                onToggle={(value) => setFilters(toggle(value))}
+              />
+            );
+          })}
+
         {/*
           Wraps rather than scrolls: there are only a handful of these and they
           grow rarely, so a scroller only ever hid the last one off the right
@@ -257,7 +282,7 @@ export default function Randomizer() {
       </button>
 
       {result?.status === 'empty' && (
-        <EmptyResult reason={result.reason} filters={filters} onChange={setFilters} />
+        <EmptyResult reason={result.reason} filters={filters} groups={groups} onChange={setFilters} />
       )}
 
       {result?.status === 'ok' && (
@@ -396,41 +421,26 @@ function ResultCard({
 function EmptyResult({
   reason,
   filters,
+  groups,
   onChange,
 }: {
   reason: PickFailureReason;
   filters: RandomizerFilters;
+  groups: TagGroup[];
   onChange: (next: RandomizerFilters) => void;
 }) {
+  // Built from the same list the filter rows are, so a selection in a group
+  // the user invented is just as clearable here as a season. Clearing reuses
+  // `selectionFor`'s toggle: taking an active value off is what a toggle does.
   const chips: { label: string; clear: () => void }[] = [];
 
-  for (const value of filters.seasons) {
-    const option = SEASON_GROUP.options.find((o) => o.value === value);
-    chips.push({
-      label: option?.label ?? value,
-      clear: () => onChange({ ...filters, seasons: filters.seasons.filter((v) => v !== value) }),
-    });
-  }
-  for (const value of filters.formality) {
-    const option = FORMALITY_GROUP.options.find((o) => o.value === value);
-    chips.push({
-      label: option?.label ?? value,
-      clear: () => onChange({ ...filters, formality: filters.formality.filter((v) => v !== value) }),
-    });
-  }
-  for (const value of filters.location) {
-    const option = LOCATION_GROUP.options.find((o) => o.value === value);
-    chips.push({
-      label: option?.label ?? value,
-      clear: () => onChange({ ...filters, location: filters.location.filter((v) => v !== value) }),
-    });
-  }
-  for (const value of filters.vibe) {
-    const option = VIBE_GROUP.options.find((o) => o.value === value);
-    chips.push({
-      label: option?.label ?? value,
-      clear: () => onChange({ ...filters, vibe: filters.vibe.filter((v) => v !== value) }),
-    });
+  for (const group of groups) {
+    if (group.id === CATEGORY_GROUP.id) continue;
+    const { selected, toggle } = selectionFor(group, filters);
+    for (const value of selected) {
+      const option = group.options.find((o) => o.value === value);
+      chips.push({ label: option?.label ?? value, clear: () => onChange(toggle(value)) });
+    }
   }
   if (filters.favoritesOnly) {
     chips.push({ label: 'favorites only', clear: () => onChange({ ...filters, favoritesOnly: false }) });

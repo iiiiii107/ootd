@@ -22,7 +22,7 @@ export const ENABLED_GROUPS_KEY = 'enabledGroups';
  * Category is absent deliberately — it is the one tag required at save time
  * (spec §4.1), so it is not a preference and must never be switchable.
  */
-const DEFAULTS: Record<string, boolean> = {
+export const DEFAULT_ENABLED_GROUPS: Record<string, boolean> = {
   season: true,
   formality: true,
   location: true,
@@ -37,7 +37,7 @@ export function isAlwaysOn(groupId: string): boolean {
 
 export async function getEnabledGroups(): Promise<Record<string, boolean>> {
   const stored = await getMeta<Record<string, boolean>>(ENABLED_GROUPS_KEY);
-  return { ...DEFAULTS, ...stored };
+  return { ...DEFAULT_ENABLED_GROUPS, ...stored };
 }
 
 export async function setGroupEnabled(groupId: string, enabled: boolean): Promise<void> {

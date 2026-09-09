@@ -781,3 +781,58 @@ describe('styleMultiplier', () => {
     expect(pickOutfit([top, bottom], filters(), [], { rng: fixedRng(0) }).status).toBe('ok');
   });
 });
+
+describe("filtering by the user's own tag groups", () => {
+  const linen = 'tag-linen';
+  const denim = 'tag-denim';
+  const top = makeItem({ category: 'top', customTags: [linen] });
+  const bottom = makeItem({ category: 'bottom', customTags: [linen] });
+  const denimBottom = makeItem({ category: 'bottom', customTags: [denim] });
+  const base = { ...DEFAULT_RANDOMIZER_FILTERS, location: [] };
+
+  it('narrows a shuffle exactly as a built-in row does', () => {
+    const filters = { ...base, groups: { 'custom:Fabric': [linen] } };
+    const result = pickOutfit([top, bottom, denimBottom], filters, [], {});
+    expect(result.status).toBe('ok');
+    expect(result.status === 'ok' && result.outfit.bottom.id).toBe(bottom.id);
+  });
+
+  // The same rule every other row follows: a non-empty row excludes anything
+  // that carries no value from it.
+  it('excludes an item with no value in a filtered group', () => {
+    const untagged = makeItem({ category: 'bottom' });
+    const filters = { ...base, groups: { 'custom:Fabric': [linen] } };
+    const result = pickOutfit([top, untagged], filters, [], {});
+    expect(result.status === 'empty' && result.reason).toBe('no-bottoms');
+  });
+
+  it('is OR within a group', () => {
+    const filters = { ...base, groups: { 'custom:Fabric': [linen, denim] } };
+    const result = pickOutfit([top, denimBottom], filters, [], {});
+    expect(result.status).toBe('ok');
+  });
+
+  it('is AND across groups', () => {
+    const filters = {
+      ...base,
+      groups: { 'custom:Fabric': [linen], 'custom:Mood': ['tag-loud'] },
+    };
+    const result = pickOutfit([top, bottom], filters, [], {});
+    expect(result.status === 'empty' && result.reason).toBe('no-tops');
+  });
+
+  it('an empty row filters nothing, so a group nobody has selected in is inert', () => {
+    const filters = { ...base, groups: { 'custom:Fabric': [] } };
+    const result = pickOutfit([top, denimBottom], filters, [], {});
+    expect(result.status).toBe('ok');
+  });
+
+  // A group removed in Settings leaves its selection behind in the saved
+  // filters. That stale row must not go on quietly excluding half the
+  // wardrobe from a screen that no longer shows it.
+  it('a stale selection from a removed group still reads as a plain filter', () => {
+    const filters = { ...base, groups: { 'custom:Gone': ['tag-vanished'] } };
+    const result = pickOutfit([top, bottom], filters, [], {});
+    expect(result.status === 'empty' && result.reason).toBe('no-tops');
+  });
+});

@@ -21,6 +21,17 @@ export interface RandomizerFilters {
   formality: Formality[];
   location: Location[];
   vibe: Vibe[];
+  /**
+   * Selections in the user's own tag groups: group id → chosen value ids,
+   * the same shape the Wardrobe's `FilterState` uses. Generic on purpose —
+   * a group somebody invents this afternoon has to narrow a shuffle exactly
+   * as season does, or a home-made group is a second-class one.
+   *
+   * Kept beside the typed built-in fields rather than replacing them: those
+   * four have pairing logic keyed to their exact values, and collapsing them
+   * into strings would lose the types that keep that logic honest.
+   */
+  groups: Record<string, string[]>;
   favoritesOnly: boolean;
   /** Off by default — the randomizer excludes wash items unless this is on (spec §6). */
   includeInWash: boolean;
@@ -49,6 +60,7 @@ export const DEFAULT_RANDOMIZER_FILTERS: RandomizerFilters = {
   formality: [],
   location: ['home'], // spec §7.1: location defaults to home
   vibe: [],
+  groups: {},
   favoritesOnly: false,
   includeInWash: false,
   includeJacket: false,
@@ -149,6 +161,14 @@ function passesFilters(
   }
   if (dimensions.vibe && filters.vibe.length > 0) {
     if (!item.vibe || !filters.vibe.includes(item.vibe)) return false;
+  }
+  // The user's own groups, held to the same rule as every row above: OR
+  // within a group, AND across groups, and a non-empty row excludes anything
+  // untagged. No knowledge of what the group *means* — it cannot have any,
+  // which is the point.
+  for (const values of Object.values(filters.groups)) {
+    if (values.length === 0) continue;
+    if (!values.some((value) => item.customTags.includes(value))) return false;
   }
   return true;
 }
